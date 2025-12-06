@@ -1,26 +1,333 @@
-@import "tailwindcss";
+/* Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&family=Merriweather:wght@300;400;700&family=Playfair+Display:wght@400;700&family=Lora:wght@400;500;600;700&family=Crimson+Text:wght@400;600;700&family=Source+Sans+3:wght@300;400;600;700&family=Libre+Baskerville:wght@400;700&display=swap');
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Core Colors - Professional Legal Palette */
+    --background: 42 20% 97%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Primary - Deep Navy (Trust & Authority) */
+    --primary: 221 45% 22%;
+    --primary-foreground: 42 35% 96%;
+
+    /* Secondary - Slate (Professional Neutral) */
+    --secondary: 215 16% 47%;
+    --secondary-foreground: 42 35% 96%;
+
+    /* Muted - Warm Gray */
+    --muted: 40 15% 92%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Accent - Pale Brown (Sophistication) */
+    --accent: 35 40% 50%;
+    --accent-foreground: 42 35% 96%;
+
+    /* Success - Muted Teal */
+    --success: 174 42% 45%;
+    --success-foreground: 42 35% 96%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 42 35% 96%;
+
+    --border: 40 20% 88%;
+    --input: 40 20% 88%;
+    --ring: 35 40% 50%;
+
+    --radius: 0.75rem;
+
+    /* Shadows - Elegant depth */
+    --shadow-soft: 0 2px 8px -2px hsl(222 47% 11% / 0.08);
+    --shadow-medium: 0 4px 16px -4px hsl(222 47% 11% / 0.12);
+    --shadow-strong: 0 8px 32px -8px hsl(222 47% 11% / 0.16);
+    --shadow-accent: 0 4px 20px -4px hsl(35 40% 50% / 0.25);
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(221 45% 22%), hsl(221 45% 32%));
+    --gradient-accent: linear-gradient(135deg, hsl(35 40% 50%), hsl(35 40% 60%));
+    --gradient-subtle: linear-gradient(180deg, hsl(42 20% 99%), hsl(42 20% 97%));
+
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    /* Chart Colors (Shadcn) */
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 42 35% 96%;
+
+    --card: 221 40% 15%;
+    --card-foreground: 42 35% 96%;
+
+    --popover: 221 40% 15%;
+    --popover-foreground: 42 35% 96%;
+
+    --primary: 38 85% 55%;
+    --primary-foreground: 222 47% 11%;
+
+    --secondary: 215 16% 35%;
+    --secondary-foreground: 42 35% 96%;
+
+    --muted: 215 20% 20%;
+    --muted-foreground: 215 16% 65%;
+
+    --accent: 35 40% 50%;
+    --accent-foreground: 42 35% 96%;
+
+    --success: 174 42% 55%;
+    --success-foreground: 222 47% 11%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 42 35% 96%;
+
+    --border: 215 20% 25%;
+    --input: 215 20% 25%;
+    --ring: 35 40% 50%;
+
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display;
+  }
+}
+
+@layer utilities {
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+
+  .shadow-medium {
+    box-shadow: var(--shadow-medium);
+  }
+
+  .shadow-strong {
+    box-shadow: var(--shadow-strong);
+  }
+
+  .shadow-accent {
+    box-shadow: 0 4px 14px 0 var(--shadow-accent);
+  }
+
+  /* Modern Scrollbar Styles */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.2);
+    border-radius: 4px;
+    transition: background 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
+  }
+
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+
+  .gradient-accent {
+    background: var(--gradient-accent);
+  }
+
+  .gradient-subtle {
+    background: var(--gradient-subtle);
+  }
+
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+
+  .transition-bounce {
+    transition: var(--transition-bounce);
+  }
+}
+
+/* Tiptap Editor Styles */
+@layer components {
+  .tiptap-editor {
+    @apply min-h-[800px] outline-none;
+  }
+
+  /* Tiptap ProseMirror Editor Content */
+  .tiptap-editor .ProseMirror {
+    @apply outline-none;
+  }
+
+  /* Typography */
+  .tiptap-editor h1 {
+    @apply text-3xl font-bold font-display mb-6 mt-8;
+  }
+
+  .tiptap-editor h2 {
+    @apply text-2xl font-bold font-display mb-4 mt-6;
+  }
+
+  .tiptap-editor h3 {
+    @apply text-xl font-bold font-display mb-3 mt-5;
+  }
+
+  .tiptap-editor h4 {
+    @apply text-lg font-semibold font-display mb-2 mt-4;
+  }
+
+  .tiptap-editor h5 {
+    @apply text-base font-semibold font-display mb-2 mt-3;
+  }
+
+  .tiptap-editor h6 {
+    @apply text-sm font-semibold font-display mb-2 mt-3;
+  }
+
+  .tiptap-editor p {
+    @apply mb-4 text-justify leading-relaxed;
+  }
+
+  .tiptap-editor p:last-child {
+    @apply mb-0;
+  }
+
+  /* Lists */
+  .tiptap-editor ul,
+  .tiptap-editor ol {
+    @apply mb-4 pl-8;
+  }
+
+  .tiptap-editor ul {
+    @apply list-disc;
+  }
+
+  .tiptap-editor ol {
+    @apply list-decimal;
+  }
+
+  .tiptap-editor li {
+    @apply mb-2;
+  }
+
+  .tiptap-editor li p {
+    @apply mb-1;
+  }
+
+  /* Text Formatting */
+  .tiptap-editor strong {
+    @apply font-bold;
+  }
+
+  .tiptap-editor em {
+    @apply italic;
+  }
+
+  .tiptap-editor u {
+    @apply underline;
+  }
+
+  .tiptap-editor code {
+    @apply bg-muted px-1.5 py-0.5 rounded text-sm font-mono;
+  }
+
+  .tiptap-editor pre {
+    @apply bg-muted p-4 rounded-lg mb-4 overflow-x-auto;
+  }
+
+  .tiptap-editor pre code {
+    @apply bg-transparent p-0;
+  }
+
+  /* Blockquote */
+  .tiptap-editor blockquote {
+    @apply border-l-4 border-accent pl-4 italic text-muted-foreground my-4;
+  }
+
+  /* Horizontal Rule */
+  .tiptap-editor hr {
+    @apply border-border my-6;
+  }
+
+  /* Placeholder */
+  .tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    @apply text-muted-foreground float-left h-0 pointer-events-none;
+  }
+
+  /* Focus */
+  .tiptap-editor:focus-within {
+    @apply outline-none;
+  }
+
+  /* Selection */
+  .tiptap-editor ::selection {
+    @apply bg-accent/20;
+  }
+
+  /* Text alignment */
+  .tiptap-editor [style*="text-align: left"] {
+    text-align: left;
+  }
+
+  .tiptap-editor [style*="text-align: center"] {
+    text-align: center;
+  }
+
+  .tiptap-editor [style*="text-align: right"] {
+    text-align: right;
+  }
+
+  .tiptap-editor [style*="text-align: justify"] {
+    text-align: justify;
+  }
+
+  /* Highlight */
+  .tiptap-editor mark {
+    @apply bg-yellow-200 dark:bg-yellow-800 px-0.5 rounded;
+  }
 }
