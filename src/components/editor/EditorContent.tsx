@@ -3,6 +3,7 @@
 import { EditorContent as TiptapEditorContent } from '@tiptap/react'
 import { Editor } from '@tiptap/react'
 import { AIAssistant } from './AIAssistant'
+import { uiConfig } from "@/config/uiConfig"
 
 interface EditorContentProps {
     editor: Editor | null
@@ -30,11 +31,13 @@ export function EditorContent({ editor, showAI, onCloseAI }: EditorContentProps)
                 </div>
             </div>
 
-            <AIAssistant
-                isOpen={showAI}
-                onClose={onCloseAI}
-                editorContent={editor.getHTML()}
-            />
+            {uiConfig.editor.aiFeatures && (
+                <AIAssistant
+                    isOpen={showAI}
+                    onClose={onCloseAI}
+                    editorContent={editor.getHTML()}
+                />
+            )}
         </>
     )
 }

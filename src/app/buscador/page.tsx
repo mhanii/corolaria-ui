@@ -1,13 +1,18 @@
 "use client"
 
-import { Search, Filter } from "lucide-react"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Search, Filter, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { SearchResults } from "@/components/search/SearchResults"
 import { useSearch } from "@/hooks/useSearch"
+import { useAuth } from "@/context/AuthContext"
 
 export default function BuscadorPage() {
+    const router = useRouter()
+    const { isAuthenticated, isLoading: isAuthLoading } = useAuth()
     const {
         query,
         results,
@@ -17,6 +22,13 @@ export default function BuscadorPage() {
         performSearch,
         setQuery
     } = useSearch();
+
+    // Redirect to login if not authenticated
+    useEffect(() => {
+        if (!isAuthLoading && !isAuthenticated) {
+            router.push('/login')
+        }
+    }, [isAuthenticated, isAuthLoading, router])
 
     const handleSearch = () => {
         if (query.trim()) {
@@ -29,6 +41,21 @@ export default function BuscadorPage() {
             handleSearch();
         }
     };
+
+    // Show loading while checking auth
+    if (isAuthLoading) {
+        return (
+            <div className="flex flex-col h-[calc(100vh-4rem)] items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+                <p className="mt-4 text-muted-foreground">Cargando...</p>
+            </div>
+        )
+    }
+
+    // Don't render if not authenticated (redirect will happen)
+    if (!isAuthenticated) {
+        return null
+    }
 
     return (
         <div className="h-full flex flex-col max-w-7xl mx-auto">
@@ -117,3 +144,4 @@ export default function BuscadorPage() {
         </div>
     )
 }
+

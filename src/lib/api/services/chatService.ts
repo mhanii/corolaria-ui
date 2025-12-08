@@ -11,6 +11,7 @@ import {
     ChatRequest,
     ChatResponse,
     ConversationResponse,
+    ConversationListResponse,
     DeleteResponse,
 } from '../types';
 
@@ -48,6 +49,7 @@ export async function sendChatMessage(
         message: request.message.trim(),
         conversation_id: request.conversation_id || null,
         top_k: request.top_k || 5,
+        ...(request.collector_type && { collector_type: request.collector_type })
     };
 
     const endpoint = buildApiUrl('chat');
@@ -143,4 +145,22 @@ export async function clearConversation(
 
     const endpoint = buildApiUrl(`chat/${conversationId}/clear`);
     return await post<DeleteResponse>(endpoint);
+}
+
+/**
+ * Get list of all conversations for the authenticated user
+ * 
+ * @returns Promise with list of conversation summaries
+ * 
+ * @throws {ErrorResponse} If not authenticated
+ * 
+ * @example
+ * ```ts
+ * const result = await getConversations();
+ * console.log(result.conversations);
+ * ```
+ */
+export async function getConversations(): Promise<ConversationListResponse> {
+    const endpoint = buildApiUrl('conversations');
+    return await get<ConversationListResponse>(endpoint);
 }

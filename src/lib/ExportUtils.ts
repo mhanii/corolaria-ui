@@ -132,13 +132,18 @@ function parseHTMLToDocx(html: string): Paragraph[] {
     const paragraphs: Paragraph[] = []
 
     // Process each element in the body
-    const processNode = (node: Node): TextRun[] => {
-        const runs: TextRun[] = []
+    // Helper to extract text from a node for use in TextRun
+    const extractText = (node: Node): string => {
+        return node.textContent || ''
+    }
+
+    const processNode = (node: Node): { text: string; bold?: boolean; italics?: boolean; underline?: boolean }[] => {
+        const runs: { text: string; bold?: boolean; italics?: boolean; underline?: boolean }[] = []
 
         if (node.nodeType === Node.TEXT_NODE) {
             const text = node.textContent || ''
             if (text.trim()) {
-                runs.push(new TextRun({ text }))
+                runs.push({ text })
             }
         } else if (node.nodeType === Node.ELEMENT_NODE) {
             const element = node as HTMLElement
@@ -155,12 +160,12 @@ function parseHTMLToDocx(html: string): Paragraph[] {
                 Array.from(element.childNodes).forEach(child => {
                     const childRuns = processNode(child)
                     childRuns.forEach(run => {
-                        runs.push(new TextRun({
+                        runs.push({
                             text: run.text,
-                            bold: isBold,
-                            italics: isItalic,
-                            underline: isUnderline ? {} : undefined
-                        }))
+                            bold: isBold || run.bold,
+                            italics: isItalic || run.italics,
+                            underline: isUnderline || run.underline
+                        })
                     })
                 })
             } else {
@@ -178,13 +183,19 @@ function parseHTMLToDocx(html: string): Paragraph[] {
     Array.from(doc.body.children).forEach(element => {
         const tagName = element.tagName.toLowerCase()
         let paragraph: Paragraph | null = null
-        const textRuns = processNode(element)
+        const textRunData = processNode(element)
+        const textRuns = textRunData.map(run => new TextRun({
+            text: run.text,
+            bold: run.bold,
+            italics: run.italics,
+            underline: run.underline ? {} : undefined
+        }))
 
         // Get text alignment
         const style = (element as HTMLElement).style.textAlign ||
             (element as HTMLElement).getAttribute('style')?.match(/text-align:\s*(left|center|right|justify)/)?.[1]
 
-        let alignment = AlignmentType.LEFT
+        let alignment: typeof AlignmentType[keyof typeof AlignmentType] = AlignmentType.LEFT
         if (style === 'center') alignment = AlignmentType.CENTER
         else if (style === 'right') alignment = AlignmentType.RIGHT
         else if (style === 'justify') alignment = AlignmentType.JUSTIFIED

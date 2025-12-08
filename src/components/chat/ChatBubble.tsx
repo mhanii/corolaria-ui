@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils"
 import { CitationResponse } from "@/lib/api/types"
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface ChatBubbleProps {
     role: "user" | "assistant"
@@ -27,45 +29,87 @@ function createCitationIndexMap(citations: CitationResponse[]): Map<number, numb
 }
 
 /**
- * Parse content and replace citation markers [n] with styled, clickable spans
- * Re-indexes citations to [1], [2], etc. based on their order in the citations array
+ * Process markdown content and replace citation markers with clickable elements
  */
-function renderContentWithCitations(
+function processMarkdownWithCitations(
     content: string,
     citations: CitationResponse[],
     indexMap: Map<number, number>,
     onCitationClick: (articleId: string) => void
 ) {
-    // Create a map of original indices to citations for quick lookup
+    // Create a map of original indices to citations
     const citationByOriginalIndex = new Map(citations.map(c => [c.index, c]))
 
-    // Split by citation markers like [1], [2], etc.
-    const parts = content.split(/(\[\d+\])/g)
+    return (
+        <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+                // Custom rendering for text to handle citation markers
+                p: ({ children, ...props }) => {
+                    const processChildren = (child: any): any => {
+                        if (typeof child === 'string') {
+                            // Split by citation markers like [1], [2], etc.
+                            const parts = child.split(/(\[\d+\])/g)
+                            return parts.map((part, idx) => {
+                                const match = part.match(/^\[(\d+)\]$/)
+                                if (match) {
+                                    const originalIndex = parseInt(match[1], 10)
+                                    const citation = citationByOriginalIndex.get(originalIndex)
+                                    if (citation) {
+                                        const displayIndex = indexMap.get(originalIndex) || originalIndex
+                                        return (
+                                            <button
+                                                key={idx}
+                                                className="inline-flex items-center justify-center px-1.5 py-0.5 mx-0.5 text-xs font-semibold rounded bg-accent/20 text-accent hover:bg-accent/30 cursor-pointer transition-colors"
+                                                title={`${citation.article_number} - ${citation.normativa_title} (Click para abrir)`}
+                                                onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    onCitationClick(citation.article_id)
+                                                }}
+                                            >
+                                                [{displayIndex}]
+                                            </button>
+                                        )
+                                    }
+                                }
+                                return part
+                            })
+                        }
+                        return child
+                    }
 
-    return parts.map((part, idx) => {
-        const match = part.match(/^\[(\d+)\]$/)
-        if (match) {
-            const originalIndex = parseInt(match[1], 10)
-            const citation = citationByOriginalIndex.get(originalIndex)
-            if (citation) {
-                const displayIndex = indexMap.get(originalIndex) || originalIndex
-                return (
-                    <button
-                        key={idx}
-                        className="inline-flex items-center justify-center px-1.5 py-0.5 mx-0.5 text-xs font-semibold rounded bg-accent/20 text-accent hover:bg-accent/30 cursor-pointer transition-colors"
-                        title={`${citation.article_number} - ${citation.normativa_title} (Click para abrir)`}
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            onCitationClick(citation.article_id)
-                        }}
-                    >
-                        [{displayIndex}]
-                    </button>
-                )
-            }
-        }
-        return <span key={idx}>{part}</span>
-    })
+                    const processedChildren = Array.isArray(children)
+                        ? children.map(processChildren)
+                        : processChildren(children)
+
+                    return <p className="mb-4 text-base leading-relaxed" {...props}>{processedChildren}</p>
+                },
+                // Enhanced styling for markdown elements to look modern
+                h1: ({ children, ...props }) => <h1 className="text-4xl font-bold mb-4 mt-6" {...props}>{children}</h1>,
+                h2: ({ children, ...props }) => <h2 className="text-3xl font-bold mb-3 mt-5" {...props}>{children}</h2>,
+                h3: ({ children, ...props }) => <h3 className="text-2xl font-semibold mb-3 mt-4" {...props}>{children}</h3>,
+                h4: ({ children, ...props }) => <h4 className="text-xl font-semibold mb-2 mt-3" {...props}>{children}</h4>,
+                ul: ({ children, ...props }) => <ul className="list-disc ml-6 mb-4 space-y-2" {...props}>{children}</ul>,
+                ol: ({ children, ...props }) => <ol className="list-decimal ml-6 mb-4 space-y-2" {...props}>{children}</ol>,
+                li: ({ children, ...props }) => <li className="text-base leading-relaxed pl-2" {...props}>{children}</li>,
+                code: ({ inline, children, ...props }: any) =>
+                    inline
+                        ? <code className="bg-muted px-2 py-1 rounded text-sm font-mono" {...props}>{children}</code>
+                        : <code className="block bg-muted p-4 rounded-lg my-4 text-sm font-mono overflow-x-auto" {...props}>{children}</code>,
+                pre: ({ children, ...props }) => <pre className="my-4" {...props}>{children}</pre>,
+                strong: ({ children, ...props }) => <strong className="font-bold" {...props}>{children}</strong>,
+                em: ({ children, ...props }) => <em className="italic" {...props}>{children}</em>,
+                a: ({ children, href, ...props }) => <a href={href} className="text-accent hover:underline font-medium" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>,
+                blockquote: ({ children, ...props }) => <blockquote className="border-l-4 border-accent/40 pl-4 py-2 my-4 italic bg-muted/30 rounded-r" {...props}>{children}</blockquote>,
+                hr: ({ ...props }) => <hr className="my-6 border-border" {...props} />,
+                table: ({ children, ...props }) => <div className="overflow-x-auto my-4"><table className="w-full border-collapse" {...props}>{children}</table></div>,
+                th: ({ children, ...props }) => <th className="border border-border bg-muted px-4 py-2 text-left font-semibold" {...props}>{children}</th>,
+                td: ({ children, ...props }) => <td className="border border-border px-4 py-2" {...props}>{children}</td>,
+            }}
+        >
+            {content}
+        </ReactMarkdown>
+    )
 }
 
 export function ChatBubble({ role, content, citations = [], onEdit }: ChatBubbleProps) {
@@ -89,33 +133,67 @@ export function ChatBubble({ role, content, citations = [], onEdit }: ChatBubble
 
     const hasCitations = citations.length > 0
 
-    // Render content with styled citation markers for assistant messages
+    // Render content - markdown for assistant, plain text for user
     const renderedContent = useMemo(() => {
-        if (role === "assistant" && hasCitations) {
-            return renderContentWithCitations(content, citations, indexMap, handleCitationClick)
+        if (role === "assistant") {
+            if (hasCitations) {
+                return processMarkdownWithCitations(content, citations, indexMap, handleCitationClick)
+            }
+            // Still render as markdown even without citations
+            return (
+                <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                        p: ({ children, ...props }) => <p className="mb-4 text-base leading-relaxed" {...props}>{children}</p>,
+                        h1: ({ children, ...props }) => <h1 className="text-4xl font-bold mb-4 mt-6" {...props}>{children}</h1>,
+                        h2: ({ children, ...props }) => <h2 className="text-3xl font-bold mb-3 mt-5" {...props}>{children}</h2>,
+                        h3: ({ children, ...props }) => <h3 className="text-2xl font-semibold mb-3 mt-4" {...props}>{children}</h3>,
+                        h4: ({ children, ...props }) => <h4 className="text-xl font-semibold mb-2 mt-3" {...props}>{children}</h4>,
+                        ul: ({ children, ...props }) => <ul className="list-disc ml-6 mb-4 space-y-2" {...props}>{children}</ul>,
+                        ol: ({ children, ...props }) => <ol className="list-decimal ml-6 mb-4 space-y-2" {...props}>{children}</ol>,
+                        li: ({ children, ...props }) => <li className="text-base leading-relaxed pl-2" {...props}>{children}</li>,
+                        code: ({ inline, children, ...props }: any) =>
+                            inline
+                                ? <code className="bg-muted px-2 py-1 rounded text-sm font-mono" {...props}>{children}</code>
+                                : <code className="block bg-muted p-4 rounded-lg my-4 text-sm font-mono overflow-x-auto" {...props}>{children}</code>,
+                        pre: ({ children, ...props }) => <pre className="my-4" {...props}>{children}</pre>,
+                        strong: ({ children, ...props }) => <strong className="font-bold" {...props}>{children}</strong>,
+                        em: ({ children, ...props }) => <em className="italic" {...props}>{children}</em>,
+                        a: ({ children, href, ...props }) => <a href={href} className="text-accent hover:underline font-medium" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>,
+                        blockquote: ({ children, ...props }) => <blockquote className="border-l-4 border-accent/40 pl-4 py-2 my-4 italic bg-muted/30 rounded-r" {...props}>{children}</blockquote>,
+                        hr: ({ ...props }) => <hr className="my-6 border-border" {...props} />,
+                        table: ({ children, ...props }) => <div className="overflow-x-auto my-4"><table className="w-full border-collapse" {...props}>{children}</table></div>,
+                        th: ({ children, ...props }) => <th className="border border-border bg-muted px-4 py-2 text-left font-semibold" {...props}>{children}</th>,
+                        td: ({ children, ...props }) => <td className="border border-border px-4 py-2" {...props}>{children}</td>,
+                    }}
+                >
+                    {content}
+                </ReactMarkdown>
+            )
         }
         return content
     }, [content, citations, role, hasCitations, indexMap])
 
     return (
         <div className={cn(
-            "flex flex-col max-w-[80%] min-w-0 group",
+            "flex flex-col max-w-[85%] min-w-0 group",
             role === "user" ? "ml-auto items-end" : "mr-auto items-start"
         )}>
             <div
                 className={cn(
-                    "rounded-2xl px-4 py-3 text-sm shadow-soft",
+                    "rounded-2xl px-3 py-2.5 shadow-soft",
                     role === "user"
-                        ? "bg-accent text-accent-foreground/90 font-medium font-mono"
-                        : "bg-card border font-mono"
+                        ? "bg-accent text-accent-foreground/90 font-medium"
+                        : "bg-card border"
                 )}
             >
-                <p className={cn(
-                    "leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]",
-                    role === "assistant" && "text-accent"
+                <div className={cn(
+                    "break-words [overflow-wrap:anywhere]",
+                    role === "assistant" && "text-accent",
+                    role === "user" && "whitespace-pre-wrap text-base leading-relaxed"
                 )}>
                     {renderedContent}
-                </p>
+                </div>
             </div>
 
             {/* Citations section for assistant messages */}
@@ -124,7 +202,7 @@ export function ChatBubble({ role, content, citations = [], onEdit }: ChatBubble
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="gap-1 text-xs text-muted-foreground hover:text-accent px-2 h-7"
+                        className="gap-1 text-xs text-muted-foreground hover:text-accent hover:bg-accent/10 px-2 h-7"
                         onClick={() => setShowCitations(!showCitations)}
                     >
                         {showCitations ? (

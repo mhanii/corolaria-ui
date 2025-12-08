@@ -2,8 +2,11 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sparkles, FileText, CheckCircle } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { uiConfig } from "@/config/uiConfig"
 
 export function EditorSidebar() {
+    if (!uiConfig.editor.aiFeatures) return null;
+
     return (
         <div className="w-80 border-l bg-card hidden xl:flex flex-col">
             <div className="p-4 border-b flex items-center gap-2">

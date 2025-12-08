@@ -3,15 +3,26 @@
 import { useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { CornerDownLeft, Paperclip, Image, FileText } from "lucide-react"
 
 interface ChatInputProps {
     onSendMessage: (message: string) => void
     message: string
     setMessage: (message: string) => void
+    collectorType?: 'rag' | 'qrag' | 'pronto'
+    onCollectorTypeChange?: (type: 'rag' | 'qrag' | 'pronto') => void
+    isNewConversation?: boolean
 }
 
-export function ChatInput({ onSendMessage, message, setMessage }: ChatInputProps) {
+export function ChatInput({
+    onSendMessage,
+    message,
+    setMessage,
+    collectorType = 'rag',
+    onCollectorTypeChange,
+    isNewConversation = false
+}: ChatInputProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
 
     useEffect(() => {
@@ -39,6 +50,17 @@ export function ChatInput({ onSendMessage, message, setMessage }: ChatInputProps
         }
     }
 
+    const getCollectorLabel = (type: 'rag' | 'qrag' | 'pronto') => {
+        switch (type) {
+            case 'rag':
+                return 'Bajo'
+            case 'qrag':
+                return 'Medio'
+            case 'pronto':
+                return 'Pronto'
+        }
+    }
+
     return (
         <div className="flex flex-col border border-border rounded-2xl shadow-lg bg-card focus-within:ring-1 focus-within:ring-ring transition-all">
             <Textarea
@@ -49,6 +71,7 @@ export function ChatInput({ onSendMessage, message, setMessage }: ChatInputProps
                 placeholder="Escribe tu consulta legal aquí..."
                 className="min-h-[60px] max-h-[200px] w-[calc(100%-1.5rem)] mx-3 mt-3 resize-none border-0 shadow-none focus-visible:ring-0 bg-muted/50 rounded-xl p-4 text-foreground placeholder:text-muted-foreground overflow-y-auto font-mono"
             />
+
 
             <div className="flex items-center justify-between p-2 pl-3">
                 <div className="flex items-center gap-1">
@@ -89,16 +112,84 @@ export function ChatInput({ onSendMessage, message, setMessage }: ChatInputProps
                     </Button>
                 </div>
 
-                <Button
-                    onClick={handleSend}
-                    disabled={!message.trim()}
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1.5 text-sm font-medium transition-all hover:bg-accent/10 hover:text-accent"
-                >
-                    Mandar
-                    <CornerDownLeft className="w-3.5 h-3.5" />
-                </Button>
+                <div className="flex items-center gap-2">
+                    {/* Collector Type Selector - Only show for new conversations */}
+                    {isNewConversation && onCollectorTypeChange && (
+                        <TooltipProvider>
+                            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-muted/30 border border-border/50">
+                                <span className="text-xs font-medium text-muted-foreground mr-1">Calidad:</span>
+
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant={collectorType === 'rag' ? 'default' : 'ghost'}
+                                            size="sm"
+                                            className={`h-6 px-2 text-xs transition-all ${collectorType === 'rag'
+                                                    ? 'bg-accent text-accent-foreground'
+                                                    : 'hover:bg-muted hover:text-foreground'
+                                                }`}
+                                            onClick={() => onCollectorTypeChange('rag')}
+                                        >
+                                            Bajo
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="text-xs">Búsqueda vectorial estándar (rápida)</p>
+                                        <p className="text-xs text-muted-foreground">Ideal para preguntas simples y directas</p>
+                                    </TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant={collectorType === 'qrag' ? 'default' : 'ghost'}
+                                            size="sm"
+                                            className={`h-6 px-2 text-xs transition-all ${collectorType === 'qrag'
+                                                    ? 'bg-accent text-accent-foreground'
+                                                    : 'hover:bg-muted hover:text-foreground'
+                                                }`}
+                                            onClick={() => onCollectorTypeChange('qrag')}
+                                        >
+                                            Medio
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="text-xs">Búsqueda optimizada con IA (más lenta)</p>
+                                        <p className="text-xs text-muted-foreground">Mejor para preguntas complejas o múltiples temas</p>
+                                    </TooltipContent>
+                                </Tooltip>
+
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            disabled={true}
+                                            className="h-6 px-2 text-xs opacity-50 cursor-not-allowed"
+                                        >
+                                            Alto
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p className="text-xs">Próximamente disponible</p>
+                                        <p className="text-xs text-muted-foreground">Búsqueda premium con análisis avanzado</p>
+                                    </TooltipContent>
+                                </Tooltip>
+                            </div>
+                        </TooltipProvider>
+                    )}
+
+                    <Button
+                        onClick={handleSend}
+                        disabled={!message.trim()}
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5 text-sm font-medium transition-all hover:bg-accent/10 hover:text-accent"
+                    >
+                        Mandar
+                        <CornerDownLeft className="w-3.5 h-3.5" />
+                    </Button>
+                </div>
             </div>
         </div>
     )

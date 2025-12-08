@@ -23,6 +23,12 @@ export type {
     ConversationResponse,
     ConversationMessageResponse,
     DeleteResponse,
+    // Auth types
+    LoginRequest,
+    TokenResponse,
+    UserInfo,
+    ConversationSummary,
+    ConversationListResponse,
 } from './types';
 
 // HTTP Client
@@ -35,4 +41,15 @@ export {
     getConversation,
     deleteConversation,
     clearConversation,
+    getConversations,
 } from './services/chatService';
+export {
+    login,
+    logout,
+    getStoredToken,
+    getStoredUser,
+    isAuthenticated,
+    getCurrentUser,
+    updateStoredTokenBalance,
+} from './services/authService';
+

@@ -22,11 +22,19 @@ const apiClient: AxiosInstance = axios.create({
 
 /**
  * Request interceptor
+ * - Adds JWT token to Authorization header
  * - Logs requests in development mode
- * - Can be extended to add authentication headers in the future
  */
 apiClient.interceptors.request.use(
     (config) => {
+        // Add JWT token if available
+        if (typeof window !== 'undefined') {
+            const token = localStorage.getItem('coloraria_access_token');
+            if (token) {
+                config.headers.Authorization = `Bearer ${token}`;
+            }
+        }
+
         if (enableApiLogging) {
             console.log('[API Request]', {
                 method: config.method?.toUpperCase(),
@@ -49,6 +57,7 @@ apiClient.interceptors.request.use(
  * Response interceptor
  * - Logs responses in development mode
  * - Transforms API errors into a consistent format
+ * - Handles 401 by redirecting to login
  */
 apiClient.interceptors.response.use(
     (response) => {
@@ -71,11 +80,26 @@ apiClient.interceptors.response.use(
             });
         }
 
+        // Handle 401 - redirect to login
+        if (error.response?.status === 401) {
+            if (typeof window !== 'undefined') {
+                // Clear stored credentials
+                localStorage.removeItem('coloraria_access_token');
+                localStorage.removeItem('coloraria_user');
+
+                // Redirect to login page (unless already on login page)
+                if (!window.location.pathname.includes('/login')) {
+                    window.location.href = '/login';
+                }
+            }
+        }
+
         // Transform error into a consistent format
         const errorResponse = transformError(error);
         return Promise.reject(errorResponse);
     }
 );
+
 
 /**
  * Transform axios errors into a consistent ErrorResponse format

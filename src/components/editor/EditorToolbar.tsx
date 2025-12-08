@@ -23,6 +23,7 @@ import {
 import { FontSelector } from './FontSelector'
 import { ColorPicker } from './ColorPicker'
 import { cn } from '@/lib/utils'
+import { uiConfig } from '@/config/uiConfig'
 
 interface EditorToolbarProps {
     editor: Editor | null
@@ -195,15 +196,17 @@ export function EditorToolbar({ editor, onSave, onAIAssistant, onExportPDF, onEx
             <div className="flex-1" />
 
             {/* AI Assistant */}
-            <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 border-accent/30 hover:bg-accent/10"
-                onClick={onAIAssistant}
-            >
-                <Sparkles className="h-4 w-4 text-accent" />
-                <span className="hidden sm:inline">IA</span>
-            </Button>
+            {uiConfig.editor.aiFeatures && (
+                <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 border-accent/30 hover:bg-accent/10"
+                    onClick={onAIAssistant}
+                >
+                    <Sparkles className="h-4 w-4 text-accent" />
+                    <span className="hidden sm:inline">IA</span>
+                </Button>
+            )}
 
             {/* Save Button */}
             <Button

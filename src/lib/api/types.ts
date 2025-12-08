@@ -232,6 +232,9 @@ export interface ChatRequest {
 
     /** Number of sources to retrieve (1-20) */
     top_k?: number;
+
+    /** Context retrieval strategy: 'rag', 'qrag', or 'pronto' */
+    collector_type?: 'rag' | 'qrag' | 'pronto';
 }
 
 /**
@@ -317,5 +320,89 @@ export interface DeleteResponse {
 
     /** Status message */
     message: string;
+}
+
+// ============ Authentication Types ============
+
+/**
+ * Request schema for login endpoint
+ */
+export interface LoginRequest {
+    /** Username (min 3 chars) */
+    username: string;
+
+    /** Password (min 6 chars) */
+    password: string;
+}
+
+/**
+ * Response schema for successful login
+ */
+export interface TokenResponse {
+    /** JWT access token */
+    access_token: string;
+
+    /** Token type (always "bearer") */
+    token_type: string;
+
+    /** Token expiry in seconds */
+    expires_in: number;
+
+    /** User ID */
+    user_id: string;
+
+    /** Username */
+    username: string;
+
+    /** Remaining API call tokens */
+    available_tokens: number;
+}
+
+/**
+ * Response schema for user info
+ */
+export interface UserInfo {
+    /** User ID */
+    id: string;
+
+    /** Username */
+    username: string;
+
+    /** Remaining API call tokens */
+    available_tokens: number;
+
+    /** Account creation date (ISO format) */
+    created_at: string;
+}
+
+/**
+ * Summary of a conversation for listing
+ */
+export interface ConversationSummary {
+    /** Conversation ID */
+    id: string;
+
+    /** Creation timestamp (ISO format) */
+    created_at: string;
+
+    /** Last update timestamp (ISO format) */
+    updated_at: string;
+
+    /** Number of messages in conversation */
+    message_count: number;
+
+    /** Preview of first message */
+    preview: string;
+}
+
+/**
+ * Response for conversation list endpoint
+ */
+export interface ConversationListResponse {
+    /** List of conversations */
+    conversations: ConversationSummary[];
+
+    /** Total number of conversations */
+    total: number;
 }
 
