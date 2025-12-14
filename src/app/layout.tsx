@@ -9,11 +9,22 @@ const crimsonPro = Crimson_Pro({ subsets: ["latin"], variable: "--font-body" });
 export const metadata: Metadata = {
   title: "Coloraria - Copiloto Legal",
   description: "Asistente legal inteligente para abogados.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 import { Header } from "@/components/layout/Header";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/context/AuthContext";
+import { SidebarProvider } from "@/context/SidebarContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { BetaProvider } from "@/context/BetaContext";
+import { OnboardingProvider } from "@/context/OnboardingContext";
+import { MainContent } from "@/components/layout/MainContent";
+import { SurveyModal } from "@/components/beta";
+import { ChatTour, SearchTour } from "@/components/onboarding";
 
 export default function RootLayout({
   children,
@@ -23,20 +34,32 @@ export default function RootLayout({
   return (
     <html lang="es" className={`${inter.variable} ${crimsonPro.variable}`} suppressHydrationWarning>
       <body className="antialiased bg-background text-foreground">
-        <AuthProvider>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <div className="flex-1 flex flex-col min-h-screen overflow-hidden ml-72">
-              <Header />
-              <main className="flex-1 overflow-y-auto bg-muted/10">
-                {children}
-              </main>
-            </div>
-          </div>
-          <Toaster />
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <BetaProvider>
+              <OnboardingProvider>
+                <SidebarProvider>
+                  <div className="flex min-h-screen">
+                    <Sidebar />
+                    <MainContent>
+                      <Header />
+                      <main className="flex-1 overflow-y-auto bg-muted/10 pt-16">
+                        {children}
+                      </main>
+                    </MainContent>
+                  </div>
+                  <Toaster />
+                  {/* Global Beta Modals */}
+                  <SurveyModal />
+                  {/* Contextual Onboarding Tours */}
+                  <ChatTour />
+                  <SearchTour />
+                </SidebarProvider>
+              </OnboardingProvider>
+            </BetaProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
 }
-

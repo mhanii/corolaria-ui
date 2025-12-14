@@ -1,186 +1,164 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Search, MessageSquare, FileText, Sparkles } from "lucide-react";
+import { Search, MessageSquare, FileText, ArrowRight, Scale, Shield, Zap, Sparkles } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 export default function Home() {
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-gradient-subtle">
-      {/* Hero Section */}
-      <div className="max-w-6xl mx-auto px-8 pt-16 pb-12">
-        <div className="text-center space-y-6 mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 text-accent text-sm font-medium mb-4">
-            <Sparkles className="h-4 w-4" />
-            Asistente Legal Inteligente
-          </div>
+    <div className="min-h-[calc(100vh-4rem)]">
+      {/* Hero Section - Bold & Welcoming */}
+      <section className="relative overflow-hidden bg-gradient-subtle">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 md:py-20 lg:py-28">
+          <div className="text-center space-y-5 md:space-y-6">
+            {/* Logo */}
+            <div className="flex justify-center mb-4">
+              {/* Show xl on mobile, 2xl on desktop */}
+              <div className="md:hidden">
+                <Logo size="xl" />
+              </div>
+              <div className="hidden md:block">
+                <Logo size="2xl" />
+              </div>
+            </div>
 
-          <h1 className="text-5xl md:text-6xl font-bold font-display bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent leading-tight">
-            Bienvenido a Coloraria
-          </h1>
+            {/* Main headline */}
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold font-display bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent leading-tight">
+              Bienvenido a Coloraria
+            </h1>
 
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
-            Tu asistente legal potenciado por inteligencia artificial para búsqueda legal, consultas interactivas y redacción de documentos
-          </p>
+            {/* Subtitle */}
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed px-2">
+              Tu asistente legal potenciado por inteligencia artificial para búsqueda legal, consultas interactivas y redacción de documentos
+            </p>
 
-          <div className="flex gap-4 justify-center mt-8">
-            <Link href="/chat">
-              <Button size="lg" className="shadow-medium hover:shadow-strong transition-smooth bg-accent text-accent-foreground hover:bg-accent/90">
-                Iniciar Chat
-                <MessageSquare className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-            <Link href="/buscador">
-              <Button size="lg" variant="outline" className="shadow-soft hover:shadow-medium transition-smooth">
-                Explorar Buscador
-                <Search className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-          </div>
-        </div>
-
-        {/* About Section */}
-        <div className="max-w-4xl mx-auto mb-16 p-8 rounded-lg bg-card shadow-soft">
-          <h2 className="text-2xl font-display font-bold text-foreground mb-4">
-            ¿Qué es Coloraria?
-          </h2>
-          <p className="text-muted-foreground leading-relaxed text-lg">
-            Coloraria es un asistente legal basado en inteligencia artificial diseñado para profesionales del derecho y estudiantes.
-            Combina búsqueda semántica avanzada, conversación contextual con IA, y herramientas de redacción asistida para
-            ayudarte a encontrar información legal, resolver consultas complejas y crear documentos jurídicos de alta calidad.
-            Nuestra plataforma entiende el contexto legal español y te proporciona respuestas precisas y fundamentadas en la
-            legislación vigente y jurisprudencia relevante.
-          </p>
-        </div>
-
-        {/* Features Grid */}
-        <div className="grid gap-8 md:grid-cols-3 items-stretch">
-          {/* Buscador Legal */}
-          <Card className="group hover:shadow-medium transition-smooth cursor-pointer border-border hover:border-accent/50 overflow-hidden flex flex-col">
-            <Link href="/buscador" className="block flex-1 flex flex-col">
-              <div className="h-2 bg-gradient-accent opacity-0 group-hover:opacity-100 transition-smooth" />
-              <CardHeader className="pb-4">
-                <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center mb-4 group-hover:bg-accent/20 transition-smooth">
-                  <Search className="h-6 w-6 text-accent" />
-                </div>
-                <CardTitle className="flex items-center gap-2 text-foreground group-hover:text-accent transition-smooth">
-                  Buscador Legal
-                </CardTitle>
-                <CardDescription className="text-base">
-                  Encuentra leyes, artículos y jurisprudencia con búsqueda semántica avanzada
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Accede a una base de datos completa de legislación española. Utiliza búsqueda semántica para encontrar
-                  artículos relevantes por concepto, no solo por palabras clave. Filtra por tipo de norma, relevancia,
-                  y obtén resultados con contexto completo.
-                </p>
-                <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li className="flex items-start gap-2">
-                    <span className="text-accent mt-1">•</span>
-                    <span>Búsqueda por similitud semántica</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-accent mt-1">•</span>
-                    <span>Filtros avanzados por tipo y materia</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-accent mt-1">•</span>
-                    <span>Puntuaciones de relevancia</span>
-                  </li>
-                </ul>
-                <Button className="w-full mt-4 group-hover:bg-accent group-hover:text-accent-foreground transition-smooth" variant="secondary">
-                  Ir al Buscador
-                </Button>
-              </CardContent>
-            </Link>
-          </Card>
-
-          {/* Chat Asistente */}
-          <Card className="group hover:shadow-medium transition-smooth cursor-pointer border-border hover:border-accent/50 overflow-hidden flex flex-col">
-            <Link href="/chat" className="block flex-1 flex flex-col">
-              <div className="h-2 bg-gradient-accent opacity-0 group-hover:opacity-100 transition-smooth" />
-              <CardHeader className="pb-4">
-                <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center mb-4 group-hover:bg-accent/20 transition-smooth">
-                  <MessageSquare className="h-6 w-6 text-accent" />
-                </div>
-                <CardTitle className="flex items-center gap-2 text-foreground group-hover:text-accent transition-smooth">
-                  Chat Asistente
-                </CardTitle>
-                <CardDescription className="text-base">
-                  Consulta tus dudas legales con nuestro asistente IA conversacional
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Mantén conversaciones naturales sobre temas legales. El asistente entiende el contexto de tus consultas,
-                  proporciona respuestas fundamentadas en legislación y jurisprudencia, y puede ayudarte a analizar casos
-                  específicos con referencias legales precisas.
-                </p>
-                <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li className="flex items-start gap-2">
-                    <span className="text-accent mt-1">•</span>
-                    <span>Respuestas contextuales y fundamentadas</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-accent mt-1">•</span>
-                    <span>Referencias a legislación vigente</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-accent mt-1">•</span>
-                    <span>Análisis de casos prácticos</span>
-                  </li>
-                </ul>
-                <Button className="w-full mt-4 group-hover:bg-accent group-hover:text-accent-foreground transition-smooth" variant="secondary">
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4 px-4 sm:px-0">
+              <Link href="/chat" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto px-8 h-12 text-base font-medium shadow-lg hover:shadow-xl transition-all bg-accent text-accent-foreground hover:bg-accent/90"
+                >
                   Iniciar Chat
+                  <MessageSquare className="ml-2 h-5 w-5" />
                 </Button>
-              </CardContent>
-            </Link>
-          </Card>
-
-          {/* Editor de Documentos */}
-          <Card className="group hover:shadow-medium transition-smooth cursor-pointer border-border hover:border-accent/50 overflow-hidden flex flex-col">
-            <Link href="/editor" className="block flex-1 flex flex-col">
-              <div className="h-2 bg-gradient-accent opacity-0 group-hover:opacity-100 transition-smooth" />
-              <CardHeader className="pb-4">
-                <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center mb-4 group-hover:bg-accent/20 transition-smooth">
-                  <FileText className="h-6 w-6 text-accent" />
-                </div>
-                <CardTitle className="flex items-center gap-2 text-foreground group-hover:text-accent transition-smooth">
-                  Editor de Documentos
-                </CardTitle>
-                <CardDescription className="text-base">
-                  Redacta documentos legales con asistencia inteligente en tiempo real
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Crea documentos jurídicos de calidad con ayuda de IA. Obtén sugerencias inteligentes mientras escribes,
-                  accede a plantillas profesionales, y mejora tu redacción con recomendaciones de lenguaje legal apropiado
-                  y referencias normativas relevantes.
-                </p>
-                <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                  <li className="flex items-start gap-2">
-                    <span className="text-accent mt-1">•</span>
-                    <span>Sugerencias inteligentes en tiempo real</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-accent mt-1">•</span>
-                    <span>Plantillas de documentos legales</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="text-accent mt-1">•</span>
-                    <span>Asistencia con terminología jurídica</span>
-                  </li>
-                </ul>
-                <Button className="w-full mt-4 group-hover:bg-accent group-hover:text-accent-foreground transition-smooth" variant="secondary">
-                  Abrir Editor
+              </Link>
+              <Link href="/buscador" className="w-full sm:w-auto">
+                <Button
+                  variant="outline"
+                  size="lg"
+                  className="w-full sm:w-auto px-8 h-12 text-base font-medium"
+                >
+                  Explorar Buscador
+                  <Search className="ml-2 h-5 w-5" />
                 </Button>
-              </CardContent>
-            </Link>
-          </Card>
+              </Link>
+            </div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      {/* Features Section - Elegant Grid */}
+      <section className="border-t border-border/50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-16 md:py-24">
+          {/* Section heading */}
+
+
+          {/* Feature cards */}
+          <div className="grid gap-6 md:gap-8 md:grid-cols-3">
+            {/* Buscador */}
+            <Link href="/buscador" className="group block">
+              <div className="h-full p-6 md:p-8 rounded-2xl border border-border bg-card/50 hover:bg-card hover:border-accent/30 hover:shadow-lg transition-all duration-300">
+                <div className="w-11 h-11 rounded-xl bg-accent/10 flex items-center justify-center mb-5 group-hover:bg-accent/20 transition-colors">
+                  <Search className="h-5 w-5 text-accent" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-accent transition-colors">
+                  Buscador Legal
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Búsqueda semántica en legislación española. Encuentra artículos por concepto, no solo palabras clave.
+                </p>
+              </div>
+            </Link>
+
+            {/* Chat */}
+            <Link href="/chat" className="group block">
+              <div className="h-full p-6 md:p-8 rounded-2xl border border-border bg-card/50 hover:bg-card hover:border-accent/30 hover:shadow-lg transition-all duration-300">
+                <div className="w-11 h-11 rounded-xl bg-accent/10 flex items-center justify-center mb-5 group-hover:bg-accent/20 transition-colors">
+                  <MessageSquare className="h-5 w-5 text-accent" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-accent transition-colors">
+                  Asistente IA
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Consultas legales con respuestas fundamentadas. Análisis de casos con referencias precisas.
+                </p>
+              </div>
+            </Link>
+
+            {/* Editor */}
+            <Link href="/editor" className="group block">
+              <div className="h-full p-6 md:p-8 rounded-2xl border border-border bg-card/50 hover:bg-card hover:border-accent/30 hover:shadow-lg transition-all duration-300">
+                <div className="w-11 h-11 rounded-xl bg-accent/10 flex items-center justify-center mb-5 group-hover:bg-accent/20 transition-colors">
+                  <FileText className="h-5 w-5 text-accent" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2 group-hover:text-accent transition-colors">
+                  Editor de Documentos
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Redacción asistida con sugerencias inteligentes y plantillas profesionales.
+                </p>
+              </div>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Section - Minimal */}
+      <section className="border-t border-border/50 bg-muted/30">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 md:py-16">
+          <div className="grid gap-6 md:gap-12 md:grid-cols-3 text-center">
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                <Scale className="h-5 w-5 text-accent" />
+              </div>
+              <p className="text-sm font-medium text-foreground">Legislación actualizada</p>
+              <p className="text-xs text-muted-foreground">Base de datos española completa</p>
+            </div>
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                <Zap className="h-5 w-5 text-accent" />
+              </div>
+              <p className="text-sm font-medium text-foreground">Respuestas instantáneas</p>
+              <p className="text-xs text-muted-foreground">Búsqueda semántica avanzada</p>
+            </div>
+            <div className="space-y-2">
+              <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-3">
+                <Shield className="h-5 w-5 text-accent" />
+              </div>
+              <p className="text-sm font-medium text-foreground">Respuestas fundamentadas</p>
+              <p className="text-xs text-muted-foreground">Siempre con referencias legales</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA - Clean */}
+      <section className="border-t border-border/50">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-16 md:py-20 text-center">
+          <h2 className="text-xl md:text-2xl font-display font-semibold text-foreground mb-4">
+            Empieza a trabajar de forma más inteligente
+          </h2>
+          <p className="text-muted-foreground mb-6">
+            Únete a profesionales que ya usan Coloraria para su práctica legal diaria.
+          </p>
+          <Link href="/chat">
+            <Button size="lg" className="px-8">
+              Comenzar ahora
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }

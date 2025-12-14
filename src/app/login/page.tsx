@@ -7,14 +7,15 @@
  * Redirects to chat after successful login.
  */
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Sparkles, User, Lock, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
+import { User, Lock, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Logo } from '@/components/ui/Logo';
 import { useAuth } from '@/context/AuthContext';
 
 export default function LoginPage() {
@@ -27,8 +28,14 @@ export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
 
     // Redirect if already authenticated
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            router.replace('/chat');
+        }
+    }, [isAuthenticated, router]);
+
     if (isAuthenticated) {
-        router.replace('/chat');
         return null;
     }
 
@@ -53,9 +60,7 @@ export default function LoginPage() {
             {/* Branding Header */}
             <div className="text-center mb-8">
                 <Link href="/" className="inline-flex items-center gap-3 group">
-                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-smooth shadow-soft">
-                        <Sparkles className="h-8 w-8 text-primary" />
-                    </div>
+                    <Logo size="lg" />
                     <div className="text-left">
                         <h1 className="text-3xl font-bold font-display text-foreground group-hover:text-primary transition-smooth">
                             Coloraria

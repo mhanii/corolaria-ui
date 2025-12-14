@@ -5,10 +5,11 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { BookOpen, Loader2, AlertCircle, ExternalLink, ChevronLeft, ChevronRight, CheckCircle, XCircle, GitBranch } from "lucide-react"
 import { ArticleResult, ArticleDetailResponse } from "@/lib/api/types"
-import { getArticleByNodeId } from "@/lib/api/services/searchService"
+import { LogoLoader } from "@/components/ui/Logo"
+import { ArticleDetailsModal } from "@/components/common/ArticleDetailsModal"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { BookOpen, AlertCircle, CheckCircle, XCircle, GitBranch } from "lucide-react"
 
 interface SearchResultsProps {
     /** Search results from the API */
@@ -28,47 +29,20 @@ export function SearchResults({ results, loading = false, error = null, query = 
     const router = useRouter()
     const [selectedArticle, setSelectedArticle] = useState<ArticleResult | ArticleDetailResponse | null>(null)
     const [dialogOpen, setDialogOpen] = useState(false)
-    const [versionLoading, setVersionLoading] = useState(false)
-    const [versionError, setVersionError] = useState<string | null>(null)
 
     const handleResultClick = (article: ArticleResult) => {
         setSelectedArticle(article)
         setDialogOpen(true)
-        setVersionError(null)
     }
 
-    const handleVersionNavigation = async (nodeId: string) => {
-        setVersionLoading(true)
-        setVersionError(null)
 
-        try {
-            const articleDetail = await getArticleByNodeId(nodeId)
-            setSelectedArticle(articleDetail)
-        } catch (err: any) {
-            setVersionError(err.message || 'Error al cargar la versión del artículo')
-            console.error('Error fetching article version:', err)
-        } finally {
-            setVersionLoading(false)
-        }
-    }
-
-    const handleOpenSource = () => {
-        if (selectedArticle) {
-            // Handle both ArticleResult (has article_id) and ArticleDetailResponse (has node_id)
-            const id = 'article_id' in selectedArticle ? selectedArticle.article_id : selectedArticle.node_id
-            router.push(`/document/${id}`)
-        }
-    }
 
     // Loading state
     if (loading) {
         return (
             <div className="space-y-4">
                 <div className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-accent" />
-                        <p className="text-muted-foreground">Buscando resultados...</p>
-                    </div>
+                    <LogoLoader text="Buscando resultados..." />
                 </div>
             </div>
         )
@@ -197,133 +171,13 @@ export function SearchResults({ results, loading = false, error = null, query = 
             })}
 
             {/* Article Detail Dialog */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogContent className="max-w-[80vw] h-[85vh] flex flex-col">
-                    {selectedArticle && (
-                        <>
-                            <DialogHeader>
-                                <div className="flex items-center gap-2 mb-2 flex-wrap">
-                                    {/* Article type badge - first */}
-                                    <Badge variant="outline" className="gap-1">
-                                        <BookOpen className="w-3 h-3" />
-                                        Artículo
-                                    </Badge>
-
-                                    {/* Vigencia status badge - after article type */}
-                                    {selectedArticle.fecha_caducidad === null && selectedArticle.fecha_vigencia && (
-                                        <Badge className="gap-1 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 border-emerald-200/50 shadow-none">
-                                            <CheckCircle className="w-3 h-3" />
-                                            Vigente
-                                        </Badge>
-                                    )}
-                                    {selectedArticle.fecha_caducidad !== null && (
-                                        <Badge variant="outline" className="gap-1 bg-red-500/10 text-red-700 hover:bg-red-500/20 border-red-200/50 shadow-none">
-                                            <XCircle className="w-3 h-3" />
-                                            No vigente
-                                        </Badge>
-                                    )}
-
-                                    {/* Multiple versions indicator */}
-                                    {(selectedArticle.previous_version_id || selectedArticle.next_version_id) && (
-                                        <Badge variant="secondary" className="gap-1">
-                                            <GitBranch className="w-3 h-3" />
-                                            Múltiples versiones
-                                        </Badge>
-                                    )}
-
-                                    {selectedArticle.context_path && selectedArticle.context_path.length > 0 && (
-                                        <Badge variant="secondary" className="text-xs">
-                                            {selectedArticle.context_path
-                                                .map(ctx => `${ctx.type} ${ctx.name}`)
-                                                .join(' › ')}
-                                        </Badge>
-                                    )}
-                                </div>
-                                <DialogTitle className="text-2xl font-display">
-                                    {selectedArticle.normativa_title} - {selectedArticle.article_number}
-                                </DialogTitle>
-
-                                {/* Date information */}
-                                {(selectedArticle.fecha_vigencia || selectedArticle.fecha_caducidad) && (
-                                    <DialogDescription>
-                                        {selectedArticle.fecha_vigencia && (
-                                            <span>Vigencia desde: {selectedArticle.fecha_vigencia}</span>
-                                        )}
-                                        {selectedArticle.fecha_caducidad && (
-                                            <span className="ml-4">Caducidad: {selectedArticle.fecha_caducidad}</span>
-                                        )}
-                                    </DialogDescription>
-                                )}
-                            </DialogHeader>
-
-                            {/* Version error message */}
-                            {versionError && (
-                                <div className="flex items-start gap-2 px-4 py-3 bg-destructive/10 border border-destructive/20 rounded-md">
-                                    <AlertCircle className="h-4 w-4 text-destructive mt-0.5" />
-                                    <p className="text-sm text-destructive">{versionError}</p>
-                                </div>
-                            )}
-
-                            <div className="flex-1 overflow-auto mt-4">
-                                {versionLoading ? (
-                                    <div className="flex items-center justify-center py-12">
-                                        <Loader2 className="h-8 w-8 animate-spin text-accent" />
-                                    </div>
-                                ) : (
-                                    <p className="text-base leading-relaxed font-mono whitespace-pre-wrap">
-                                        {selectedArticle.article_text}
-                                    </p>
-                                )}
-                            </div>
-
-                            <div className="flex justify-between items-center gap-3 mt-4 pt-4 border-t">
-                                {/* Version navigation buttons */}
-                                <div className="flex gap-2">
-                                    {selectedArticle.previous_version_id && (
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => handleVersionNavigation(selectedArticle.previous_version_id!)}
-                                            disabled={versionLoading}
-                                            className="gap-2"
-                                        >
-                                            <ChevronLeft className="w-4 h-4" />
-                                            Versión anterior
-                                        </Button>
-                                    )}
-                                    {selectedArticle.next_version_id && (
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => handleVersionNavigation(selectedArticle.next_version_id!)}
-                                            disabled={versionLoading}
-                                            className="gap-2"
-                                        >
-                                            Versión posterior
-                                            <ChevronRight className="w-4 h-4" />
-                                        </Button>
-                                    )}
-                                </div>
-
-                                {/* Dialog action buttons */}
-                                <div className="flex gap-3">
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setDialogOpen(false)}
-                                    >
-                                        Cerrar
-                                    </Button>
-                                    <Button
-                                        onClick={handleOpenSource}
-                                        className="gap-2"
-                                    >
-                                        <ExternalLink className="w-4 h-4" />
-                                        Abrir fuente
-                                    </Button>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                </DialogContent>
-            </Dialog>
+            {/* Article Detail Dialog */}
+            <ArticleDetailsModal
+                article={selectedArticle}
+                isOpen={dialogOpen}
+                onOpenChange={setDialogOpen}
+                onArticleChange={setSelectedArticle}
+            />
         </div>
     )
 }

@@ -29,6 +29,22 @@ export type {
     UserInfo,
     ConversationSummary,
     ConversationListResponse,
+    // Streaming types
+    StreamEvent,
+    StreamChunkEvent,
+    StreamCitationsEvent,
+    StreamDoneEvent,
+    StreamErrorEvent,
+    StreamChatCallbacks,
+    // Beta types
+    TestModeStatusResponse,
+    SurveyQuestionsResponse,
+    SurveyRequest,
+    SurveyResponse,
+    FeedbackType,
+    FeedbackRequest,
+    FeedbackResponse,
+    InsufficientTokensError,
 } from './types';
 
 // HTTP Client
@@ -38,6 +54,7 @@ export { default as apiClient, get, post, put, del } from './client';
 export { semanticSearch } from './services/searchService';
 export {
     sendChatMessage,
+    streamChatMessage,
     getConversation,
     deleteConversation,
     clearConversation,
@@ -52,4 +69,9 @@ export {
     getCurrentUser,
     updateStoredTokenBalance,
 } from './services/authService';
-
+export {
+    getBetaStatus,
+    getSurveyQuestions,
+    submitSurvey,
+    submitFeedback,
+} from './services/betaService';

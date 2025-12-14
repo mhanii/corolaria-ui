@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SearchResults } from "@/components/search/SearchResults"
 import { useSearch } from "@/hooks/useSearch"
 import { useAuth } from "@/context/AuthContext"
+import { LogoLoader } from "@/components/ui/Logo"
 
 export default function BuscadorPage() {
     const router = useRouter()
@@ -46,8 +47,7 @@ export default function BuscadorPage() {
     if (isAuthLoading) {
         return (
             <div className="flex flex-col h-[calc(100vh-4rem)] items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-accent" />
-                <p className="mt-4 text-muted-foreground">Cargando...</p>
+                <LogoLoader />
             </div>
         )
     }
@@ -59,9 +59,9 @@ export default function BuscadorPage() {
 
     return (
         <div className="h-full flex flex-col max-w-7xl mx-auto">
-            <div className="space-y-4 mb-6 p-6">
-                <div className="flex gap-3">
-                    <div className="flex-1 relative">
+            <div className="space-y-4 mb-4 md:mb-6 p-3 md:p-6">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                    <div className="flex-1 relative" data-tour-id="search-input">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                         <Input
                             placeholder="Buscar leyes, artículos, jurisprudencia..."
@@ -77,17 +77,18 @@ export default function BuscadorPage() {
                         onClick={handleSearch}
                         disabled={loading || !query.trim()}
                         className="h-12 px-6"
+                        data-tour-id="search-button"
                     >
                         Buscar
                     </Button>
-                    <Button variant="outline" size="icon" className="h-12 w-12 shadow-soft">
+                    <Button variant="outline" size="icon" className="h-12 w-12 shadow-soft hidden sm:flex">
                         <Filter className="w-5 h-5" />
                     </Button>
                 </div>
 
-                <div className="flex gap-3 flex-wrap">
+                <div className="flex gap-2 sm:gap-3 flex-wrap">
                     <Select defaultValue="all">
-                        <SelectTrigger className="w-40 shadow-soft">
+                        <SelectTrigger className="w-full sm:w-40 shadow-soft">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -98,8 +99,9 @@ export default function BuscadorPage() {
                         </SelectContent>
                     </Select>
 
+                    {/* Hide category filter on mobile */}
                     <Select defaultValue="all-categories">
-                        <SelectTrigger className="w-48 shadow-soft">
+                        <SelectTrigger className="hidden sm:flex w-48 shadow-soft">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -111,8 +113,9 @@ export default function BuscadorPage() {
                         </SelectContent>
                     </Select>
 
+                    {/* Hide sort filter on mobile */}
                     <Select defaultValue="relevance">
-                        <SelectTrigger className="w-40 shadow-soft">
+                        <SelectTrigger className="hidden sm:flex w-40 shadow-soft">
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -124,7 +127,7 @@ export default function BuscadorPage() {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto px-6 pb-6">
+            <div className="flex-1 overflow-auto px-3 md:px-6 pb-4 md:pb-6">
                 {hasSearched ? (
                     <SearchResults
                         results={results?.results || []}

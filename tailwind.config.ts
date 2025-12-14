@@ -66,9 +66,32 @@ const config: Config = {
                     '0%': { backgroundPosition: '-200% 0' },
                     '100%': { backgroundPosition: '200% 0' },
                 },
+                blink: {
+                    '0%, 50%': { opacity: '1' },
+                    '51%, 100%': { opacity: '0' },
+                },
+                'chat-descend': {
+                    '0%': { transform: 'translateY(-100px)', opacity: '0.8' },
+                    '100%': { transform: 'translateY(0)', opacity: '1' },
+                },
+                'logo-pulse': {
+                    '0%, 100%': {
+                        transform: 'scale(1)',
+                        opacity: '1',
+                        filter: 'drop-shadow(0 0 0px hsl(var(--accent)))'
+                    },
+                    '50%': {
+                        transform: 'scale(1.08)',
+                        opacity: '0.85',
+                        filter: 'drop-shadow(0 0 12px hsl(var(--accent)))'
+                    },
+                },
             },
             animation: {
                 shimmer: 'shimmer 2s ease-in-out infinite',
+                blink: 'blink 1s step-end infinite',
+                'chat-descend': 'chat-descend 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+                'logo-pulse': 'logo-pulse 1.5s ease-in-out infinite',
             },
         }
     },

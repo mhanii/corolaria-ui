@@ -10,7 +10,17 @@
  * Reads from NEXT_PUBLIC_API_URL environment variable.
  * Falls back to localhost:8000 for development if not set.
  */
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// Use window.location.hostname in the browser to support access from other devices (e.g. mobile)
+// This assumes the backend is running on the same host but port 8000
+const getBaseUrl = () => {
+    if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+    if (typeof window !== 'undefined') {
+        return `http://${window.location.hostname}:8000`;
+    }
+    return 'http://localhost:8000';
+};
+
+export const API_BASE_URL = getBaseUrl();
 
 /**
  * API version prefix.

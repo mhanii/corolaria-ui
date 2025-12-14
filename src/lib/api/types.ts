@@ -233,16 +233,19 @@ export interface ChatRequest {
     /** Number of sources to retrieve (1-20) */
     top_k?: number;
 
-    /** Context retrieval strategy: 'rag', 'qrag', or 'pronto' */
-    collector_type?: 'rag' | 'qrag' | 'pronto';
+    /** Context retrieval strategy: 'rag', 'qrag', or 'agent' */
+    collector_type?: 'rag' | 'qrag' | 'agent';
 }
 
 /**
  * Schema for citation in response
  */
 export interface CitationResponse {
-    /** Citation number [1], [2], etc. */
-    index: number;
+    /** Unique citation identifier (e.g., "art_14_ce_abc123") */
+    cite_key: string;
+
+    /** Text shown in the citation (e.g., "Artículo 14") */
+    display_text: string;
 
     /** Unique article identifier */
     article_id: string;
@@ -406,3 +409,162 @@ export interface ConversationListResponse {
     total: number;
 }
 
+// ============ Streaming Types ============
+
+/**
+ * Streaming chunk event - partial response text
+ */
+export interface StreamChunkEvent {
+    type: 'chunk';
+    /** Partial response content */
+    content: string;
+}
+
+/**
+ * Streaming citations event - sent after text completes
+ */
+export interface StreamCitationsEvent {
+    type: 'citations';
+    /** List of citations referenced in the response */
+    citations: CitationResponse[];
+}
+
+/**
+ * Streaming done event - marks stream completion
+ */
+export interface StreamDoneEvent {
+    type: 'done';
+    /** Conversation ID for follow-up messages */
+    conversation_id: string;
+    /** Total processing time in milliseconds */
+    execution_time_ms: number;
+    /** Optional metadata */
+    metadata?: Record<string, any>;
+}
+
+/**
+ * Streaming error event
+ */
+export interface StreamErrorEvent {
+    type: 'error';
+    /** Error message */
+    message: string;
+    /** Additional error details */
+    details?: Record<string, any>;
+}
+
+/**
+ * Union type for all streaming events
+ */
+export type StreamEvent =
+    | StreamChunkEvent
+    | StreamCitationsEvent
+    | StreamDoneEvent
+    | StreamErrorEvent;
+
+/**
+ * Callbacks for streaming chat message
+ */
+export interface StreamChatCallbacks {
+    /** Called for each content chunk */
+    onChunk?: (content: string) => void;
+    /** Called when citations are received */
+    onCitations?: (citations: CitationResponse[]) => void;
+    /** Called when stream completes successfully */
+    onDone?: (conversationId: string, executionTimeMs: number) => void;
+    /** Called when an error occurs */
+    onError?: (message: string, details?: Record<string, any>) => void;
+}
+
+// ============ Beta Testing Types ============
+
+/**
+ * Response from beta status endpoint
+ */
+export interface TestModeStatusResponse {
+    /** Whether test mode is enabled for this user */
+    test_mode_enabled: boolean;
+    /** Current token balance */
+    available_tokens: number;
+    /** Whether user needs to complete survey for refill */
+    requires_refill: boolean;
+    /** Number of surveys completed */
+    surveys_completed: number;
+}
+
+/**
+ * Survey questions response
+ */
+export interface SurveyQuestionsResponse {
+    /** List of survey questions */
+    questions: string[];
+    /** Total number of questions */
+    total_questions: number;
+}
+
+/**
+ * Request to submit survey responses
+ */
+export interface SurveyRequest {
+    /** Array of responses matching question order */
+    responses: string[];
+}
+
+/**
+ * Response after survey submission
+ */
+export interface SurveyResponse {
+    /** Whether submission succeeded */
+    success: boolean;
+    /** Number of tokens granted */
+    tokens_granted: number;
+    /** New token balance after refill */
+    new_balance: number;
+    /** Confirmation message */
+    message: string;
+}
+
+/**
+ * Feedback type options
+ */
+export type FeedbackType = 'like' | 'dislike' | 'report';
+
+/**
+ * Request to submit message feedback
+ */
+export interface FeedbackRequest {
+    /** ID of the message being rated */
+    message_id: number;
+    /** Conversation ID */
+    conversation_id: string;
+    /** Type of feedback */
+    feedback_type: FeedbackType;
+    /** Optional comment */
+    comment?: string | null;
+}
+
+/**
+ * Response after feedback submission
+ */
+export interface FeedbackResponse {
+    /** Feedback record ID */
+    id: string;
+    /** Whether submission succeeded */
+    success: boolean;
+    /** Confirmation message */
+    message: string;
+}
+
+/**
+ * Error response for insufficient tokens (402)
+ */
+export interface InsufficientTokensError {
+    /** Error type */
+    error: 'InsufficientTokens';
+    /** Error message */
+    message: string;
+    /** Flag indicating survey needed */
+    requires_refill: boolean;
+    /** Survey endpoint path */
+    survey_endpoint: string;
+}
