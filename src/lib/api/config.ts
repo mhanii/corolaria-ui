@@ -1,6 +1,6 @@
 /**
  * API Configuration
- * 
+ *
  * Centralized configuration for API endpoints and versioning.
  * Uses environment variables to allow easy switching between development and production.
  */
@@ -15,9 +15,9 @@
 const getBaseUrl = () => {
     if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
     if (typeof window !== 'undefined') {
-        return `http://${window.location.hostname}:8000`;
+        return `https://${window.location.hostname}:8000`;
     }
-    return 'http://localhost:8000';
+    return 'https://localhost:8000';
 };
 
 export const API_BASE_URL = getBaseUrl();
@@ -36,14 +36,14 @@ export const API_TIMEOUT = 30000; // 30 seconds
 
 /**
  * Build a full API endpoint URL.
- * 
+ *
  * @param path - The endpoint path (e.g., '/search/semantic')
  * @returns Full URL for the endpoint
- * 
+ *
  * @example
  * ```ts
- * buildApiUrl('/search/semantic') 
- * // Returns: 'http://localhost:8000/api/v1/search/semantic'
+ * buildApiUrl('/search/semantic')
+ * // Returns: 'https//localhost:8000/api/v1/search/semantic'
  * ```
  */
 export function buildApiUrl(path: string): string {

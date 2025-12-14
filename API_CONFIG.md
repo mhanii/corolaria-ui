@@ -12,14 +12,14 @@ Create a `.env.local` file in the root directory of the project with the followi
 
 ```bash
 # API Configuration
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=https//localhost:8000
 ```
 
 ### Configuration Values
 
 **Development:**
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_API_URL=https//localhost:8000
 ```
 
 **Production:**
@@ -52,11 +52,11 @@ import { useSearch } from '@/hooks/useSearch';
 
 function MyComponent() {
   const { performSearch, results, loading, error } = useSearch();
-  
+
   const handleSearch = async () => {
     await performSearch('my query', { top_k: 20 });
   };
-  
+
   // Use results, loading, error in your component
 }
 ```

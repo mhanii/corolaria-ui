@@ -83,7 +83,7 @@ async function streamChat(message, conversationId = null) {
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  
+
   let citations = [];
   let conversationIdResult = null;
   let fullResponse = '';
@@ -91,33 +91,33 @@ async function streamChat(message, conversationId = null) {
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
-    
+
     const text = decoder.decode(value, { stream: true });
-    
+
     // Parse SSE events (may contain multiple events per chunk)
     const lines = text.split('\n');
     for (const line of lines) {
       if (line.startsWith('data: ')) {
         const data = JSON.parse(line.slice(6));
-        
+
         switch (data.type) {
           case 'chunk':
             fullResponse += data.content;
             // Update UI with partial response
             updateChatMessage(fullResponse);
             break;
-            
+
           case 'citations':
             citations = data.citations;
             // Display citations in UI
             displayCitations(citations);
             break;
-            
+
           case 'done':
             conversationIdResult = data.conversation_id;
             console.log(`Completed in ${data.execution_time_ms}ms`);
             break;
-            
+
           case 'error':
             console.error('Stream error:', data.message);
             showError(data.message);
@@ -126,7 +126,7 @@ async function streamChat(message, conversationId = null) {
       }
     }
   }
-  
+
   return { response: fullResponse, citations, conversationId: conversationIdResult };
 }
 ```
@@ -157,10 +157,10 @@ interface StreamErrorEvent {
   details?: Record<string, any>;
 }
 
-type StreamEvent = 
-  | StreamChunkEvent 
-  | StreamCitationsEvent 
-  | StreamDoneEvent 
+type StreamEvent =
+  | StreamChunkEvent
+  | StreamCitationsEvent
+  | StreamDoneEvent
   | StreamErrorEvent;
 
 interface Citation {
@@ -182,14 +182,14 @@ interface Citation {
 ```javascript
 try {
   const response = await fetch('/api/v1/chat/stream', options);
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.detail?.message || 'Request failed');
   }
-  
+
   // Process stream...
-  
+
 } catch (error) {
   if (error.name === 'AbortError') {
     console.log('Stream aborted by user');
@@ -212,7 +212,7 @@ async function chat(message, conversationId = null, useStreaming = true) {
       console.warn('Streaming failed, falling back:', e);
     }
   }
-  
+
   // Fallback to non-streaming
   const response = await fetch('/api/v1/chat', {
     method: 'POST',
@@ -222,7 +222,7 @@ async function chat(message, conversationId = null, useStreaming = true) {
     },
     body: JSON.stringify({ message, conversation_id: conversationId })
   });
-  
+
   return response.json();
 }
 ```
@@ -230,7 +230,7 @@ async function chat(message, conversationId = null, useStreaming = true) {
 ## Testing with curl
 
 ```bash
-curl -N -X POST "http://localhost:8000/api/v1/chat/stream" \
+curl -N -X POST "https//localhost:8000/api/v1/chat/stream" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -d '{"message": "¿Qué es el artículo 14?"}'
