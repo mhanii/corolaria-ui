@@ -23,7 +23,7 @@ export default function Home() {
 
             {/* Main headline */}
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold font-display bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent leading-tight">
-              Bienvenido a Coloraria
+              Bienvenido a Athen
             </h1>
 
             {/* Subtitle */}
@@ -149,7 +149,7 @@ export default function Home() {
             Empieza a trabajar de forma más inteligente
           </h2>
           <p className="text-muted-foreground mb-6">
-            Únete a profesionales que ya usan Coloraria para su práctica legal diaria.
+            Únete a profesionales que ya usan Athen para su práctica legal diaria.
           </p>
           <Link href="/chat">
             <Button size="lg" className="px-8">

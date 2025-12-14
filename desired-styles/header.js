@@ -18,7 +18,7 @@ export const Header = () => {
                     <span className="text-primary-foreground font-bold text-lg">C</span>
                 </div>
                 <div>
-                    <h1 className="text-xl font-display font-bold text-foreground">Coloraria</h1>
+                    <h1 className="text-xl font-display font-bold text-foreground">Athen</h1>
                     <p className="text-xs text-muted-foreground">Asistente Legal Inteligente</p>
                 </div>
             </div>

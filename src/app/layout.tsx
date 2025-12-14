@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const crimsonPro = Crimson_Pro({ subsets: ["latin"], variable: "--font-body" });
 
 export const metadata: Metadata = {
-  title: "Coloraria - Copiloto Legal",
+  title: "Athen - Copiloto Legal",
   description: "Asistente legal inteligente para abogados.",
   icons: {
     icon: "/logo.png",

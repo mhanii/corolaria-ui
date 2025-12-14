@@ -14,8 +14,8 @@ import {
 } from '../types';
 
 // Storage keys
-const TOKEN_KEY = 'coloraria_access_token';
-const USER_KEY = 'coloraria_user';
+const TOKEN_KEY = 'athen_access_token';
+const USER_KEY = 'athen_user';
 
 /**
  * Login with username and password

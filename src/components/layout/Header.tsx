@@ -43,7 +43,7 @@ export function Header() {
                 >
                     <Menu className="h-5 w-5" />
                 </Button>
-                <h1 className="text-xl font-display font-bold text-foreground">Coloraria</h1>
+                <h1 className="text-xl font-display font-bold text-foreground">Athen</h1>
             </div>
 
             <div className="flex items-center gap-1 md:gap-2">

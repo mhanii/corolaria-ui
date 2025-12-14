@@ -29,7 +29,7 @@ apiClient.interceptors.request.use(
     (config) => {
         // Add JWT token if available
         if (typeof window !== 'undefined') {
-            const token = localStorage.getItem('coloraria_access_token');
+            const token = localStorage.getItem('athen_access_token');
             if (token) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
@@ -84,8 +84,8 @@ apiClient.interceptors.response.use(
         if (error.response?.status === 401) {
             if (typeof window !== 'undefined') {
                 // Clear stored credentials
-                localStorage.removeItem('coloraria_access_token');
-                localStorage.removeItem('coloraria_user');
+                localStorage.removeItem('athen_access_token');
+                localStorage.removeItem('athen_user');
 
                 // Redirect to login page (unless already on login page)
                 if (!window.location.pathname.includes('/login')) {

@@ -15,7 +15,7 @@ export const ChatTab = () => {
     const [messages, setMessages] = useState < Message[] > ([
         {
             role: "assistant",
-            content: "¡Hola! Soy tu asistente legal de Coloraria. ¿En qué puedo ayudarte hoy?",
+            content: "¡Hola! Soy tu asistente legal de Athen. ¿En qué puedo ayudarte hoy?",
         },
     ]);
     const [input, setInput] = useState("");
@@ -93,8 +93,8 @@ export const ChatTab = () => {
 
                             <div
                                 className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-soft ${message.role === "user"
-                                        ? "bg-primary text-primary-foreground"
-                                        : "bg-card border border-border"
+                                    ? "bg-primary text-primary-foreground"
+                                    : "bg-card border border-border"
                                     }`}
                             >
                                 <p className="text-sm leading-relaxed whitespace-pre-wrap">

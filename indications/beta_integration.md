@@ -1,6 +1,6 @@
 # Beta Testing Frontend Integration Guide
 
-Guide for integrating the Beta Testing features into the Coloraria frontend.
+Guide for integrating the Beta Testing features into the Athen frontend.
 
 ---
 

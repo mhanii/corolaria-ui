@@ -292,7 +292,7 @@ export default function ChatWithIdPage() {
                     {messages.length === 0 && !chatId && (
                         <div className="mb-6">
                             <h1 className="text-2xl md:text-4xl font-display font-bold text-accent mb-2 md:mb-3">
-                                ¡Hola! Soy tu asistente legal de Coloraria
+                                ¡Hola! Soy tu asistente legal de Athen
                             </h1>
                             <h2 className="text-xl md:text-2xl font-display font-semibold text-foreground mb-2">
                                 ¿En qué puedo ayudarte hoy?

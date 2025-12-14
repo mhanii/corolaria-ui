@@ -215,7 +215,7 @@ export async function streamChatMessage(
     // Get token from localStorage
     let token: string | null = null;
     if (typeof window !== 'undefined') {
-        token = localStorage.getItem('coloraria_access_token');
+        token = localStorage.getItem('athen_access_token');
     }
 
     try {

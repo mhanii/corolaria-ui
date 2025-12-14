@@ -3,7 +3,7 @@
 /**
  * Login Page
  * 
- * Beautiful login page matching the Coloraria brand.
+ * Beautiful login page matching the Athen brand.
  * Redirects to chat after successful login.
  */
 
@@ -63,7 +63,7 @@ export default function LoginPage() {
                     <Logo size="lg" />
                     <div className="text-left">
                         <h1 className="text-3xl font-bold font-display text-foreground group-hover:text-primary transition-smooth">
-                            Coloraria
+                            Athen
                         </h1>
                         <p className="text-sm text-muted-foreground">
                             Asistente Legal IA

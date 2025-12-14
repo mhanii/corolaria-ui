@@ -14,7 +14,7 @@ import CharacterCount from '@tiptap/extension-character-count'
 import { useEffect, useState } from 'react'
 import { exportToPDF, exportToDOCX } from '@/lib/ExportUtils'
 
-const STORAGE_KEY = 'coloraria-editor-content'
+const STORAGE_KEY = 'athen-editor-content'
 
 const defaultContent = `
 <h1>Contrato de Arrendamiento de Vivienda</h1>

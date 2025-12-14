@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the updated API structure with authentication for the Coloraria chatbot. All chat endpoints now require JWT authentication.
+This document describes the updated API structure with authentication for the Athen chatbot. All chat endpoints now require JWT authentication.
 
 ---
 

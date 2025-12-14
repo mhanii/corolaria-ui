@@ -47,7 +47,7 @@ export function AIAssistant({ isOpen, onClose, editorContent }: AIAssistantProps
                 <div className="flex items-center justify-between p-4 border-b bg-gradient-accent">
                     <div className="flex items-center gap-2">
                         <Sparkles className="h-5 w-5 text-white" />
-                        <h3 className="font-semibold text-white">Asistente IA Coloraria</h3>
+                        <h3 className="font-semibold text-white">Asistente IA Athen</h3>
                     </div>
                     <Button
                         variant="ghost"

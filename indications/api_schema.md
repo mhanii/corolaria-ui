@@ -1,6 +1,6 @@
 # Beta Testing API Schema
 
-API endpoints for the Coloraria Beta Testing program.
+API endpoints for the Athen Beta Testing program.
 
 ## Base URL
 ```

@@ -1,6 +1,6 @@
 # API Configuration Guide
 
-This document explains how to configure the API connection for the Coloraria UI application.
+This document explains how to configure the API connection for the Athen UI application.
 
 ## Environment Variables
 

@@ -12,9 +12,9 @@ import { useAuth } from './AuthContext';
 
 // localStorage keys
 const STORAGE_KEYS = {
-    WELCOME_SEEN: 'coloraria_onboarding_welcome',
-    CHAT_TOUR_SEEN: 'coloraria_onboarding_chat',
-    SEARCH_TOUR_SEEN: 'coloraria_onboarding_search',
+    WELCOME_SEEN: 'athen_onboarding_welcome',
+    CHAT_TOUR_SEEN: 'athen_onboarding_chat',
+    SEARCH_TOUR_SEEN: 'athen_onboarding_search',
 } as const;
 
 interface TourState {

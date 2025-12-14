@@ -17,7 +17,7 @@ const sizeMap = {
 }
 
 /**
- * Coloraria Logo component
+ * Athen Logo component
  * @param size - Size of the logo (sm, md, lg, xl, 2xl)
  * @param className - Additional classes
  * @param animate - Whether to show the loading pulse animation
@@ -36,7 +36,7 @@ export function Logo({ size = "md", className, animate = false }: LogoProps) {
         >
             <img
                 src="/logo.png"
-                alt="Coloraria Logo"
+                alt="Athen Logo"
                 width={dimensions}
                 height={dimensions}
                 className={cn(
