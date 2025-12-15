@@ -17,13 +17,13 @@ const CHAT_TOUR_STEPS: SpotlightStep[] = [
     {
         target: '[data-tour-id="chat-input"]',
         title: '💬 Escribe tu consulta',
-        content: 'Aquí puedes escribir cualquier pregunta sobre legislación colombiana. El asistente te responderá con citas de fuentes legales.',
+        content: 'Puedes hacer preguntas, pedir aclaraciones o solicitar explicaciones sobre cualquier tema legal. El asistente te responderá con citas de fuentes.',
         placement: 'top',
     },
     {
         target: '[data-tour-id="quality-selector"]',
         title: '⭐ Ajusta la calidad',
-        content: 'Selecciona la calidad de respuesta: Baja para respuestas rápidas, Media para balance, o Alta para análisis detallados.',
+        content: 'Elige el nivel de calidad: Mid → Alto → MAX. Mayor nivel significa más fuentes consultadas. Estamos en beta, así que prueba cualquiera.',
         placement: 'top',
     },
     {

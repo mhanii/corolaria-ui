@@ -54,9 +54,9 @@ export function ChatInput({
     const getCollectorLabel = (type: 'rag' | 'qrag' | 'agent') => {
         switch (type) {
             case 'rag':
-                return 'Bajo'
+                return 'Mid'
             case 'qrag':
-                return 'Medio'
+                return 'Alto'
             case 'agent':
                 return 'MAX'
         }
@@ -77,28 +77,24 @@ export function ChatInput({
 
             <div className="flex items-center justify-between p-2 pl-2 md:pl-3">
                 <div className="flex items-center gap-2">
-                    {/* File attachment button */}
-                    <div className="flex items-center">
-                        <input
-                            type="file"
-                            id="file-upload"
-                            className="hidden"
-                            onChange={(e) => {
-                                if (e.target.files?.length) {
-                                    console.log("File selected:", e.target.files[0].name)
-                                    // TODO: Implement actual file upload
-                                }
-                            }}
-                        />
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-accent hover:bg-muted/50 transition-colors"
-                            onClick={() => document.getElementById("file-upload")?.click()}
-                        >
-                            <Paperclip className="h-4 w-4" />
-                        </Button>
-                    </div>
+                    {/* File attachment button - disabled with tooltip */}
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-muted-foreground/50 cursor-not-allowed"
+                                    disabled
+                                >
+                                    <Paperclip className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top">
+                                <p>Disponible pronto</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
 
                     {/* Quality Selector - Expandable */}
                     {isNewConversation && onCollectorTypeChange && (
@@ -126,7 +122,7 @@ export function ChatInput({
                                             onClick={() => { onCollectorTypeChange('rag'); setIsQualityExpanded(false); }}
                                             className={`h-7 px-2 text-xs transition-colors ${collectorType === 'rag' ? 'bg-accent/20 text-accent hover:bg-accent/40 hover:text-accent' : 'hover:bg-muted hover:text-accent text-muted-foreground'}`}
                                         >
-                                            Bajo
+                                            Mid
                                         </Button>
 
                                         <Button
@@ -135,7 +131,7 @@ export function ChatInput({
                                             onClick={() => { onCollectorTypeChange('qrag'); setIsQualityExpanded(false); }}
                                             className={`h-7 px-2 text-xs transition-colors ${collectorType === 'qrag' ? 'bg-accent/20 text-accent hover:bg-accent/40 hover:text-accent' : 'hover:bg-muted hover:text-accent text-muted-foreground'}`}
                                         >
-                                            Medio
+                                            Alto
                                         </Button>
 
                                         {/* MAX option with gradient */}

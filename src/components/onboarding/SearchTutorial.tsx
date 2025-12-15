@@ -17,7 +17,7 @@ const SEARCH_TOUR_STEPS: SpotlightStep[] = [
     {
         target: '[data-tour-id="search-input"]',
         title: '🔍 Búsqueda semántica',
-        content: 'Escribe tu consulta en lenguaje natural. No necesitas palabras exactas - el sistema entiende el significado.',
+        content: 'Escribe tu consulta como si hablaras con una persona. Funciona mejor con preguntas naturales como: "¿Qué derechos tienen los inquilinos?" o "Artículos que hablan de la protección de datos".',
         placement: 'bottom',
     },
     {

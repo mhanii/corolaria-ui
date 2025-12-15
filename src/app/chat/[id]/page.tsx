@@ -243,9 +243,9 @@ export default function ChatWithIdPage() {
     }
 
     const suggestions = [
-        { icon: FileText, text: "Redactar un contrato de arrendamiento" },
-        { icon: Search, text: "Buscar jurisprudencia sobre despidos" },
-        { icon: Scale, text: "Analizar un documento legal" },
+        { icon: Search, text: "¿Qué dice la ley sobre el despido improcedente?" },
+        { icon: Scale, text: "Explícame los derechos de los inquilinos" },
+        { icon: FileText, text: "¿Cuál es la diferencia entre denuncia y querella?" },
     ]
 
     // Show loading while checking auth
