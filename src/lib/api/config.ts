@@ -14,6 +14,7 @@
 // This assumes the backend is running on the same host but port 8000
 const getBaseUrl = () => {
     if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+    console.log('NEXT_PUBLIC_API_URL not set, defaulting to localhost:8000');
     if (typeof window !== 'undefined') {
         return `https://${window.location.hostname}:8000`;
     }
