@@ -4,10 +4,10 @@ import { useRef, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { CornerDownLeft, Paperclip } from "lucide-react"
+import { CornerDownLeft, Paperclip, FileText, X } from "lucide-react"
 
 interface ChatInputProps {
-    onSendMessage: (message: string) => void
+    onSendMessage: (message: string, file?: File | null) => void
     message: string
     setMessage: (message: string) => void
     collectorType?: 'rag' | 'qrag' | 'agent'
@@ -24,6 +24,8 @@ export function ChatInput({
     isNewConversation = false
 }: ChatInputProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
+    const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [isQualityExpanded, setIsQualityExpanded] = useState(false)
 
     useEffect(() => {
@@ -34,13 +36,20 @@ export function ChatInput({
     }, [message])
 
     const handleSend = () => {
-        if (message.trim()) {
-            onSendMessage(message.trim())
+        if (message.trim() || selectedFile) {
+            onSendMessage(message.trim(), selectedFile)
             setMessage("")
+            setSelectedFile(null)
             // Reset height
             if (textareaRef.current) {
                 textareaRef.current.style.height = "auto"
             }
+        }
+    }
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            setSelectedFile(e.target.files[0])
         }
     }
 
@@ -63,7 +72,21 @@ export function ChatInput({
     }
 
     return (
-        <div className="flex flex-col border border-border rounded-2xl shadow-lg bg-card focus-within:ring-1 focus-within:ring-ring transition-all">
+        <div className="flex flex-col border border-border rounded-2xl shadow-lg bg-card focus-within:ring-1 focus-within:ring-ring transition-all overflow-hidden">
+            {selectedFile && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-accent/5 border-b border-border text-xs text-accent font-medium animate-in slide-in-from-top-2 duration-200">
+                    <FileText className="h-3.5 w-3.5" />
+                    <span className="truncate max-w-[200px]">{selectedFile.name}</span>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5 ml-auto hover:bg-accent/10 hover:text-accent rounded-full"
+                        onClick={() => setSelectedFile(null)}
+                    >
+                        <X className="h-3 w-3" />
+                    </Button>
+                </div>
+            )}
             <Textarea
                 ref={textareaRef}
                 value={message}
@@ -84,17 +107,24 @@ export function ChatInput({
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 text-muted-foreground/50 cursor-not-allowed"
-                                    disabled
+                                    className="h-8 w-8 text-muted-foreground hover:text-accent hover:bg-muted/50 transition-colors"
+                                    onClick={() => fileInputRef.current?.click()}
                                 >
                                     <Paperclip className="h-4 w-4" />
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent side="top">
-                                <p>Disponible pronto</p>
+                                <p>Adjuntar PDF o DOCX</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept=".pdf,.docx"
+                        className="hidden"
+                    />
 
                     {/* Quality Selector - Expandable */}
                     {isNewConversation && onCollectorTypeChange && (
@@ -154,7 +184,7 @@ export function ChatInput({
 
                 <Button
                     onClick={handleSend}
-                    disabled={!message.trim()}
+                    disabled={!message.trim() && !selectedFile}
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 text-sm font-medium transition-all hover:bg-accent/10 hover:text-accent"

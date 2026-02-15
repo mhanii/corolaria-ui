@@ -17,12 +17,20 @@ import {
     updateStoredTokenBalance,
     UserInfo,
 } from '@/lib/api';
+import { SKIP_VERFICIATION } from '@/lib/api/config';
 
 interface AuthUser {
     id: string;
     username: string;
     available_tokens: number;
 }
+
+// Mock user for local development when SKIP_VERFICIATION is enabled
+const MOCK_DEVELOPER_USER: AuthUser = {
+    id: 'dev-user-id',
+    username: 'Desarrollador (Skip Auth)',
+    available_tokens: 1000,
+};
 
 interface AuthContextType {
     /** Current user info or null if not authenticated */
@@ -79,6 +87,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
                     } catch {
                         // Token might be expired, will be handled by 401 interceptor
                     }
+                } else if (SKIP_VERFICIATION) {
+                    // If skip auth is enabled and no user is stored, use mock user
+                    setUser(MOCK_DEVELOPER_USER);
                 }
             } catch (error) {
                 console.error('Auth check failed:', error);
@@ -114,6 +125,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
             });
         } catch (error) {
             console.error('Failed to refresh user:', error);
+            // If skip auth is enabled, don't clear the user on refresh failure
+            if (!SKIP_VERFICIATION) {
+                setUser(null);
+            }
         }
     }, []);
 
@@ -124,7 +139,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const value: AuthContextType = {
         user,
-        isAuthenticated: user !== null,
+        isAuthenticated: user !== null || SKIP_VERFICIATION,
         isLoading,
         login,
         logout,

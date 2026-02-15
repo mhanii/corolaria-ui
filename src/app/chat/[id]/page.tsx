@@ -90,7 +90,7 @@ export default function ChatWithIdPage() {
         }
     }
 
-    const handleSendMessage = async (content: string) => {
+    const handleSendMessage = async (content: string, file?: File | null) => {
         // Clear any previous error
         setError(null)
 
@@ -112,6 +112,7 @@ export default function ChatWithIdPage() {
                 {
                     message: content,
                     conversation_id: conversationId,
+                    file: file,
                     top_k: 5,
                     // Only include collector_type for new conversations
                     ...(conversationId === null && { collector_type: collectorType })
@@ -194,6 +195,7 @@ export default function ChatWithIdPage() {
                 const response = await sendChatMessage({
                     message: content,
                     conversation_id: conversationId,
+                    file: file,
                     top_k: 5,
                     ...(conversationId === null && { collector_type: collectorType })
                 })

@@ -47,16 +47,31 @@ export async function sendChatMessage(
         };
     }
 
-    // Set defaults
-    const chatRequest: ChatRequest = {
-        message: request.message.trim(),
-        conversation_id: request.conversation_id || null,
-        top_k: request.top_k || 5,
-        ...(request.collector_type && { collector_type: request.collector_type })
-    };
+    // Construct FormData
+    const formData = new FormData();
+    formData.append('message', request.message.trim());
+
+    if (request.conversation_id) {
+        formData.append('conversation_id', request.conversation_id);
+    }
+
+    formData.append('top_k', (request.top_k || 5).toString());
+
+    if (request.collector_type) {
+        formData.append('collector_type', request.collector_type);
+    }
+
+    if (request.file) {
+        formData.append('file', request.file);
+    }
 
     const endpoint = buildApiUrl('chat');
-    return await post<ChatResponse, ChatRequest>(endpoint, chatRequest);
+    // Note: Do NOT set Content-Type header manually for FormData; axios/browser will handle it
+    return await post<ChatResponse>(endpoint, formData, {
+        headers: {
+            'Content-Type': undefined
+        }
+    });
 }
 
 /**
@@ -201,13 +216,23 @@ export async function streamChatMessage(
         return new AbortController();
     }
 
-    // Set defaults
-    const chatRequest: ChatRequest = {
-        message: request.message.trim(),
-        conversation_id: request.conversation_id || null,
-        top_k: request.top_k || 5,
-        ...(request.collector_type && { collector_type: request.collector_type })
-    };
+    // Construct FormData
+    const formData = new FormData();
+    formData.append('message', request.message.trim());
+
+    if (request.conversation_id) {
+        formData.append('conversation_id', request.conversation_id);
+    }
+
+    formData.append('top_k', (request.top_k || 5).toString());
+
+    if (request.collector_type) {
+        formData.append('collector_type', request.collector_type);
+    }
+
+    if (request.file) {
+        formData.append('file', request.file);
+    }
 
     const abortController = new AbortController();
     const endpoint = `${API_BASE_URL}/api/v1/chat/stream`;
@@ -222,10 +247,10 @@ export async function streamChatMessage(
         const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                // Note: Do NOT set Content-Type; the browser must set it with the boundary for FormData
                 ...(token && { 'Authorization': `Bearer ${token}` })
             },
-            body: JSON.stringify(chatRequest),
+            body: formData,
             signal: abortController.signal
         });
 

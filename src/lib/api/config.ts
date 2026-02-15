@@ -59,6 +59,11 @@ export function buildApiUrl(path: string): string {
 export const isDevelopment = process.env.NODE_ENV === 'development';
 
 /**
+ * Skip verification flag for development
+ */
+export const SKIP_VERFICIATION = process.env.NEXT_PUBLIC_SKIP_VERFICIATION === 'true' || process.env.NEXT_PUBLIC_SKIP_VERIFICATION === 'true';
+
+/**
  * Enable API request logging in development
  */
 export const enableApiLogging = isDevelopment;

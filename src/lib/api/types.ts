@@ -230,10 +230,13 @@ export interface ChatRequest {
     /** Optional conversation ID for multi-turn chat */
     conversation_id?: string | null;
 
+    /** Optional PDF or DOCX file */
+    file?: File | null;
+
     /** Number of sources to retrieve (1-20) */
     top_k?: number;
 
-    /** Context retrieval strategy: 'rag', 'qrag', or 'agent' */
+    /** Context retrieval strategy: 'rag', 'qrag' | 'agent' */
     collector_type?: 'rag' | 'qrag' | 'agent';
 }
 

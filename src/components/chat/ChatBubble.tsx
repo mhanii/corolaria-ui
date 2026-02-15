@@ -7,9 +7,9 @@ import { CitationResponse, ArticleDetailResponse, ArticleResult } from "@/lib/ap
 import { getArticleByNodeId } from "@/lib/api/services/searchService"
 import { ArticleDetailsModal } from "@/components/common/ArticleDetailsModal"
 import { FeedbackButtons } from "@/components/beta"
-import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
-import ReactMarkdown from 'react-markdown'
+import { useState, useMemo, ReactNode, isValidElement, cloneElement, ReactElement } from "react"
+// import { useRouter } from "next/navigation"
+import ReactMarkdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
 interface ChatBubbleProps {
@@ -28,9 +28,8 @@ interface ChatBubbleProps {
 
 
 
-/**
- * Process markdown content and replace citation markers with clickable elements
- */
+import { extractOrderedCitationIds, mapCitationsToIds } from "@/lib/citationUtils"
+
 /**
  * Process markdown content and replace citation markers with clickable elements
  */
@@ -40,25 +39,34 @@ function processMarkdownWithCitations(
     onCitationClick: (articleId: string) => void,
     isStreaming: boolean = false
 ) {
-    // Create a map of cite_key to citations
-    const citationMap = new Map(citations.map(c => [c.cite_key, c]))
+    // Legacy support: Map of cite_key to citations
+    const legacyCitationMap = new Map(citations.map(c => [c.cite_key, c]))
+
+    // New format support: Map of ID (from [1], [2]...) to citations
+    const orderedIds = extractOrderedCitationIds(content)
+    const idCitationMap = mapCitationsToIds(orderedIds, citations)
 
     // Helper function to process text children and convert citation markers to buttons
-    const processChildren = (child: any): any => {
+    const processChildren = (child: ReactNode): ReactNode => {
         if (typeof child === 'string') {
-            // Split by citation markers like [cite:key]Text[/cite]
-            const parts = child.split(/(\[cite:[^\]]+\](?:[\s\S]+?)\[\/cite\])/g)
+            // Split by citation markers:
+            // 1. Legacy: [cite:key]Text[/cite]
+            // 2. New: [1], [1, 2], [1, 2, 3]
+            const regex = /(\[cite:[^\]]+\](?:[\s\S]+?)\[\/cite\]|\[(?:\d+(?:\s*,\s*\d+)*)\])/g
+            const parts = child.split(regex)
+
             return parts.map((part, idx) => {
-                const match = part.match(/^\[cite:([^\]]+)\]([\s\S]+?)\[\/cite\]$/)
-                if (match) {
-                    const citeKey = match[1]
-                    const displayText = match[2]
-                    const citation = citationMap.get(citeKey)
+                // Check for Legacy format
+                const legacyMatch = part.match(/^\[cite:([^\]]+)\]([\s\S]+?)\[\/cite\]$/)
+                if (legacyMatch) {
+                    const citeKey = legacyMatch[1]
+                    const displayText = legacyMatch[2]
+                    const citation = legacyCitationMap.get(citeKey)
 
                     if (citation) {
                         return (
                             <button
-                                key={idx}
+                                key={`legacy-${idx}`}
                                 className="inline-flex items-center justify-center px-1.5 py-0 mx-0.5 text-[0.9rem] font-medium rounded bg-accent/10 text-foreground/75 hover:text-foreground hover:bg-accent/20 cursor-pointer transition-colors hover:underline hover:decoration-dotted underline-offset-4"
                                 title={`${citation.normativa_title} - ${citation.article_path} (Click para abrir)`}
                                 onClick={(e) => {
@@ -70,93 +78,133 @@ function processMarkdownWithCitations(
                             </button>
                         )
                     }
-                    // Fallback if citation not found: show styled text
+                    // Fallback
                     return (
                         <span
-                            key={idx}
+                            key={`legacy-fallback-${idx}`}
                             className="inline-flex items-center justify-center px-1.5 py-0 mx-0.5 text-[0.9rem] font-medium rounded bg-accent/10 text-foreground/75"
                         >
                             {displayText}
                         </span>
                     )
                 }
+
+                // Check for New format [1] or [1, 2]
+                const newMatch = part.match(/^\[((?:\d+(?:\s*,\s*\d+)*))\]$/)
+                if (newMatch) {
+                    const ids = newMatch[1].split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
+
+                    if (ids.length === 0) return part;
+
+                    // Render one or more buttons
+                    return (
+                        <span key={`new-group-${idx}`} className="inline-flex flex-wrap items-baseline gap-0.5 mx-0.5 whitespace-nowrap">
+                            {ids.map((id, subIdx) => {
+                                const citation = idCitationMap.get(id)
+                                if (citation) {
+                                    return (
+                                        <button
+                                            key={`cit-${id}-${subIdx}`}
+                                            className="inline-flex items-center justify-center min-w-[1.2em] h-[1.2em] px-0.5 text-[0.75rem] font-bold rounded-sm bg-accent/15 text-accent-foreground/90 hover:bg-accent/25 hover:text-accent-foreground cursor-pointer transition-colors align-super transform -translate-y-1"
+                                            title={`${citation.display_text}\n${citation.normativa_title} - ${citation.article_path}`}
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                onCitationClick(citation.article_id)
+                                            }}
+                                        >
+                                            {id}
+                                        </button>
+                                    )
+                                }
+                                // Fallback if citation not found for ID? Just show the number or hide?
+                                // Document says: "If a number is missing from the map, treat it as invalid and render as plain text or hide."
+                                // Let's render as plain text for debug visibility but styled slightly differently? 
+                                // Or purely plain text.
+                                // Requirement: "Render as plain text or hide".
+                                return <span key={`missing-${id}-${subIdx}`} className="text-muted-foreground text-[0.75rem] align-super">[{id}]</span>
+                            })}
+                        </span>
+                    )
+                }
+
                 return part
             })
         }
         // Recursively process React elements that have children
-        if (child && typeof child === 'object' && child.props && child.props.children) {
-            return {
-                ...child,
-                props: {
-                    ...child.props,
-                    children: Array.isArray(child.props.children)
-                        ? child.props.children.map(processChildren)
-                        : processChildren(child.props.children)
-                }
+        if (isValidElement(child)) {
+            const element = child as ReactElement<any>
+            if (element.props.children) {
+                return cloneElement(element, {
+                    children: processAllChildren(element.props.children)
+                })
             }
         }
         return child
     }
 
     // Helper to process all children of an element
-    const processAllChildren = (children: any) => {
+    const processAllChildren = (children: ReactNode): ReactNode => {
         if (Array.isArray(children)) {
             return children.map(processChildren)
         }
         return processChildren(children)
     }
 
+    const components: Components = {
+        // Apply citation processing to all text-containing elements
+        p: ({ children, ...props }) => (
+            <p className="mb-4 text-base leading-relaxed" {...props}>{processAllChildren(children)}</p>
+        ),
+        li: ({ children, ...props }) => (
+            <li className="text-base leading-relaxed pl-2" {...props}>{processAllChildren(children)}</li>
+        ),
+        h1: ({ children, ...props }) => (
+            <h1 className="text-4xl font-bold mb-4 mt-6" {...props}>{processAllChildren(children)}</h1>
+        ),
+        h2: ({ children, ...props }) => (
+            <h2 className="text-3xl font-bold mb-3 mt-5" {...props}>{processAllChildren(children)}</h2>
+        ),
+        h3: ({ children, ...props }) => (
+            <h3 className="text-2xl font-semibold mb-3 mt-4" {...props}>{processAllChildren(children)}</h3>
+        ),
+        h4: ({ children, ...props }) => (
+            <h4 className="text-xl font-semibold mb-2 mt-3" {...props}>{processAllChildren(children)}</h4>
+        ),
+        td: ({ children, ...props }) => (
+            <td className="border border-border px-4 py-2" {...props}>{processAllChildren(children)}</td>
+        ),
+        th: ({ children, ...props }) => (
+            <th className="border border-border bg-muted px-4 py-2 text-left font-semibold" {...props}>{processAllChildren(children)}</th>
+        ),
+        blockquote: ({ children, ...props }) => (
+            <blockquote className="border-l-4 border-accent/40 pl-4 py-2 my-4 italic bg-muted/30 rounded-r" {...props}>{processAllChildren(children)}</blockquote>
+        ),
+        strong: ({ children, ...props }) => (
+            <strong className="font-bold" {...props}>{processAllChildren(children)}</strong>
+        ),
+        em: ({ children, ...props }) => (
+            <em className="italic" {...props}>{processAllChildren(children)}</em>
+        ),
+        // Elements that don't need citation processing
+        ul: ({ children, ...props }) => <ul className="list-disc ml-6 mb-4 space-y-2" {...props}>{children}</ul>,
+        ol: ({ children, ...props }) => <ol className="list-decimal ml-6 mb-4 space-y-2" {...props}>{children}</ol>,
+        code: ({ className, children, ...props }) => {
+            const { inline } = props as any
+            return inline
+                ? <code className="bg-muted px-2 py-1 rounded text-sm font-mono" {...props}>{children}</code>
+                : <code className="block bg-muted p-4 rounded-lg my-4 text-sm font-mono overflow-x-auto" {...props}>{children}</code>
+        },
+        pre: ({ children, ...props }) => <pre className="my-4" {...props}>{children}</pre>,
+        a: ({ children, href, ...props }) => <a href={href} className="text-accent hover:underline font-medium" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>,
+        hr: ({ ...props }) => <hr className="my-6 border-border" {...props} />,
+        table: ({ children, ...props }) => <div className="overflow-x-auto my-4"><table className="w-full border-collapse" {...props}>{children}</table></div>,
+    }
+
     return (
         <>
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
-                components={{
-                    // Apply citation processing to all text-containing elements
-                    p: ({ children, ...props }) => (
-                        <p className="mb-4 text-base leading-relaxed" {...props}>{processAllChildren(children)}</p>
-                    ),
-                    li: ({ children, ...props }) => (
-                        <li className="text-base leading-relaxed pl-2" {...props}>{processAllChildren(children)}</li>
-                    ),
-                    h1: ({ children, ...props }) => (
-                        <h1 className="text-4xl font-bold mb-4 mt-6" {...props}>{processAllChildren(children)}</h1>
-                    ),
-                    h2: ({ children, ...props }) => (
-                        <h2 className="text-3xl font-bold mb-3 mt-5" {...props}>{processAllChildren(children)}</h2>
-                    ),
-                    h3: ({ children, ...props }) => (
-                        <h3 className="text-2xl font-semibold mb-3 mt-4" {...props}>{processAllChildren(children)}</h3>
-                    ),
-                    h4: ({ children, ...props }) => (
-                        <h4 className="text-xl font-semibold mb-2 mt-3" {...props}>{processAllChildren(children)}</h4>
-                    ),
-                    td: ({ children, ...props }) => (
-                        <td className="border border-border px-4 py-2" {...props}>{processAllChildren(children)}</td>
-                    ),
-                    th: ({ children, ...props }) => (
-                        <th className="border border-border bg-muted px-4 py-2 text-left font-semibold" {...props}>{processAllChildren(children)}</th>
-                    ),
-                    blockquote: ({ children, ...props }) => (
-                        <blockquote className="border-l-4 border-accent/40 pl-4 py-2 my-4 italic bg-muted/30 rounded-r" {...props}>{processAllChildren(children)}</blockquote>
-                    ),
-                    strong: ({ children, ...props }) => (
-                        <strong className="font-bold" {...props}>{processAllChildren(children)}</strong>
-                    ),
-                    em: ({ children, ...props }) => (
-                        <em className="italic" {...props}>{processAllChildren(children)}</em>
-                    ),
-                    // Elements that don't need citation processing
-                    ul: ({ children, ...props }) => <ul className="list-disc ml-6 mb-4 space-y-2" {...props}>{children}</ul>,
-                    ol: ({ children, ...props }) => <ol className="list-decimal ml-6 mb-4 space-y-2" {...props}>{children}</ol>,
-                    code: ({ inline, children, ...props }: any) =>
-                        inline
-                            ? <code className="bg-muted px-2 py-1 rounded text-sm font-mono" {...props}>{children}</code>
-                            : <code className="block bg-muted p-4 rounded-lg my-4 text-sm font-mono overflow-x-auto" {...props}>{children}</code>,
-                    pre: ({ children, ...props }) => <pre className="my-4" {...props}>{children}</pre>,
-                    a: ({ children, href, ...props }) => <a href={href} className="text-accent hover:underline font-medium" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>,
-                    hr: ({ ...props }) => <hr className="my-6 border-border" {...props} />,
-                    table: ({ children, ...props }) => <div className="overflow-x-auto my-4"><table className="w-full border-collapse" {...props}>{children}</table></div>,
-                }}
+                components={components}
             >
                 {content}
             </ReactMarkdown>
@@ -177,7 +225,7 @@ export function ChatBubble({
     conversationId,
     testModeEnabled = false,
 }: ChatBubbleProps) {
-    const router = useRouter()
+    // const router = useRouter()
     const [showCitations, setShowCitations] = useState(false)
     const [selectedArticle, setSelectedArticle] = useState<ArticleResult | ArticleDetailResponse | null>(null)
     const [dialogOpen, setDialogOpen] = useState(false)
