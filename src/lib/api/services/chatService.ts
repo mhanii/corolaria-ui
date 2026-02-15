@@ -300,6 +300,10 @@ export async function streamChatMessage(
                                     case 'citations':
                                         callbacks.onCitations?.(data.citations);
                                         break;
+                                    case 'metadata':
+                                        // Pass the metadata (e.g. { document_name: ... })
+                                        callbacks.onMetadata?.(data);
+                                        break;
                                     case 'done':
                                         callbacks.onDone?.(data.conversation_id, data.execution_time_ms);
                                         break;

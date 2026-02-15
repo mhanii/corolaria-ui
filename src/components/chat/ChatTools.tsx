@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { Download, Save, History, MoreHorizontal, Trash2 } from "lucide-react"
+import { Download, Save, History, MoreHorizontal, Trash2, FileText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
     DropdownMenu,
@@ -24,6 +24,7 @@ interface ChatToolsProps {
 }
 
 export function ChatTools({ messages, onDelete }: ChatToolsProps) {
+
     const { toast } = useToast()
 
     const handleExport = () => {
@@ -188,5 +189,6 @@ export function ChatTools({ messages, onDelete }: ChatToolsProps) {
                 )}
             </div>
         </div>
+
     )
 }

@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { ChatBubble } from "@/components/chat/ChatBubble"
 import { ChatInput } from "@/components/chat/ChatInput"
 import { ChatTools } from "@/components/chat/ChatTools"
+import { DocumentAttachment } from "@/components/chat/DocumentAttachment"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
 import { FileText, Search, Scale, AlertCircle, Loader2, Coins } from "lucide-react"
@@ -18,6 +19,7 @@ interface Message {
     role: "user" | "assistant"
     content: string
     citations?: CitationResponse[]
+    document_name?: string | null
 }
 
 export default function ChatWithIdPage() {
@@ -29,6 +31,8 @@ export default function ChatWithIdPage() {
 
     const [messages, setMessages] = useState<Message[]>([])
 
+    const [streamingCitations, setStreamingCitations] = useState<CitationResponse[]>([])
+
     const [isTyping, setIsTyping] = useState(false)
     const [isStreaming, setIsStreaming] = useState(false)
     const [streamingContent, setStreamingContent] = useState("")
@@ -36,7 +40,7 @@ export default function ChatWithIdPage() {
     const [conversationId, setConversationId] = useState<string | null>(chatId || null)
     const [error, setError] = useState<string | null>(null)
     const [insufficientTokens, setInsufficientTokens] = useState(false)
-    const [collectorType, setCollectorType] = useState<'rag' | 'qrag' | 'agent'>('rag')
+    const [collectorType, setCollectorType] = useState<'rag' | 'qrag' | 'agent' | 'matrix' | 'research'>('matrix')
     const scrollRef = useRef<HTMLDivElement>(null)
     const abortControllerRef = useRef<AbortController | null>(null)
 
@@ -71,16 +75,20 @@ export default function ChatWithIdPage() {
             const conversation = await getConversation(id)
 
             // Convert conversation messages to our Message format
+            // The API response for existing messages might include document_name
             const loadedMessages: Message[] = conversation.messages.map(msg => ({
                 role: msg.role,
                 content: msg.content,
-                citations: msg.citations
+                citations: msg.citations,
+                // document_name is now part of ConversationMessageResponse in types.ts
+                document_name: msg.document_name
             }))
 
             if (loadedMessages.length > 0) {
                 setMessages(loadedMessages)
                 setConversationId(conversation.id)
             }
+
         } catch (err: any) {
             console.error('Failed to load conversation:', err)
             // Keep the default greeting if conversation fails to load
@@ -94,8 +102,12 @@ export default function ChatWithIdPage() {
         // Clear any previous error
         setError(null)
 
-        // Add user message immediately
-        const userMessage: Message = { role: "user", content }
+        // Add user message immediately with optimistic document name
+        const userMessage: Message = {
+            role: "user",
+            content,
+            document_name: file ? file.name : null
+        }
         setMessages(prev => [...prev, userMessage])
 
         // Start loading state
@@ -129,6 +141,33 @@ export default function ChatWithIdPage() {
                     },
                     onCitations: (citations) => {
                         streamCitations = citations
+                        setStreamingCitations(citations)
+                    },
+                    onMetadata: (metadata) => {
+                        if (metadata.document_name) {
+                            // Update the last message (which is the user message we just sent) with confirmed document name
+                            setMessages(prev => {
+                                const newMessages = [...prev]
+                                const lastIndex = newMessages.length - 1
+                                // Ensure we are updating a user message
+                                if (lastIndex >= 0 && newMessages[lastIndex].role === 'user') {
+                                    newMessages[lastIndex] = {
+                                        ...newMessages[lastIndex],
+                                        document_name: metadata.document_name
+                                    }
+                                } else {
+                                    // Fallback: search backwards for the last user message
+                                    const lastUserIndex = newMessages.findLastIndex(m => m.role === 'user');
+                                    if (lastUserIndex >= 0) {
+                                        newMessages[lastUserIndex] = {
+                                            ...newMessages[lastUserIndex],
+                                            document_name: metadata.document_name
+                                        }
+                                    }
+                                }
+                                return newMessages
+                            })
+                        }
                     },
                     onDone: (newConversationId, executionTimeMs) => {
                         console.log(`Stream completed in ${executionTimeMs}ms`)
@@ -152,6 +191,7 @@ export default function ChatWithIdPage() {
                         setMessages(prev => [...prev, assistantMessage])
                         setIsStreaming(false)
                         setStreamingContent("")
+                        setStreamingCitations([])
                     },
                     onError: (message, details) => {
                         console.error('Stream error:', message, details)
@@ -180,6 +220,7 @@ export default function ChatWithIdPage() {
                         setIsTyping(false)
                         setIsStreaming(false)
                         setStreamingContent("")
+                        setStreamingCitations([])
                     }
                 }
             )
@@ -202,6 +243,23 @@ export default function ChatWithIdPage() {
 
                 if (response.conversation_id) {
                     setConversationId(response.conversation_id)
+                }
+
+                if (response.document_name) {
+                    // Update the last user message with confirmed document name
+                    setMessages(prev => {
+                        const newMessages = [...prev]
+                        // Identify the message we just sent. It should be the last one if we haven't added assistant response yet.
+                        // Actually, we added user message at start. So it is the last message in `prev` before we add assistant message.
+                        const lastUserIndex = newMessages.findLastIndex(m => m.role === 'user');
+                        if (lastUserIndex >= 0) {
+                            newMessages[lastUserIndex] = {
+                                ...newMessages[lastUserIndex],
+                                document_name: response.document_name
+                            }
+                        }
+                        return newMessages
+                    })
                 }
 
                 if (user && user.available_tokens > 0) {
@@ -227,6 +285,7 @@ export default function ChatWithIdPage() {
                 setIsTyping(false)
                 setIsStreaming(false)
                 setStreamingContent("")
+                setStreamingCitations([])
             }
         }
     }
@@ -355,15 +414,21 @@ export default function ChatWithIdPage() {
                         </div>
                     )}
 
-                    {messages.map((message, idx) => (
-                        <ChatBubble
-                            key={idx}
-                            role={message.role}
-                            content={message.content}
-                            citations={message.citations}
-                            onEdit={setInputMessage}
-                        />
-                    ))}
+                    {messages.map((message, idx) => {
+                        return (
+                            <div key={idx} className="flex flex-col w-full">
+                                {message.document_name && (
+                                    <DocumentAttachment documentName={message.document_name} />
+                                )}
+                                <ChatBubble
+                                    role={message.role}
+                                    content={message.content}
+                                    citations={message.citations}
+                                    onEdit={setInputMessage}
+                                />
+                            </div>
+                        );
+                    })}
 
                     {isTyping && (
                         <div className="flex gap-3 items-start">
@@ -390,6 +455,7 @@ export default function ChatWithIdPage() {
                         <ChatBubble
                             role="assistant"
                             content={streamingContent}
+                            citations={streamingCitations}
                             isStreaming={true}
                         />
                     )}

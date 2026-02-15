@@ -236,14 +236,17 @@ export interface ChatRequest {
     /** Number of sources to retrieve (1-20) */
     top_k?: number;
 
-    /** Context retrieval strategy: 'rag', 'qrag' | 'agent' */
-    collector_type?: 'rag' | 'qrag' | 'agent';
+    /** Context retrieval strategy: 'rag', 'qrag', 'agent', 'matrix', 'research' */
+    collector_type?: 'rag' | 'qrag' | 'agent' | 'matrix' | 'research';
 }
 
 /**
  * Schema for citation in response
  */
 export interface CitationResponse {
+    /** Unique numeric identifier for the citation in this response */
+    id: number;
+
     /** Unique citation identifier (e.g., "art_14_ce_abc123") */
     cite_key: string;
 
@@ -262,8 +265,12 @@ export interface CitationResponse {
     /** Hierarchical path (e.g., 'Título I') */
     article_path: string;
 
+
     /** Retrieval similarity score */
     score: number;
+
+    /** Unique identifier for the regulation (e.g. 'BOE-A-1978-31229') */
+    normativa_id?: string;
 }
 
 /**
@@ -281,6 +288,9 @@ export interface ChatResponse {
 
     /** Total processing time in milliseconds */
     execution_time_ms: number;
+
+    /** Name of the uploaded document, if any */
+    document_name?: string;
 }
 
 /**
@@ -298,6 +308,9 @@ export interface ConversationMessageResponse {
 
     /** Message timestamp (ISO format) */
     timestamp: string;
+
+    /** Name of the uploaded document, if any (message-scoped) */
+    document_name?: string | null;
 }
 
 /**
@@ -433,6 +446,16 @@ export interface StreamCitationsEvent {
 }
 
 /**
+ * Streaming metadata event - sent after processing
+ */
+export interface StreamMetadataEvent {
+    type: 'metadata';
+    /** Document name if a file was uploaded */
+    document_name?: string;
+    [key: string]: any;
+}
+
+/**
  * Streaming done event - marks stream completion
  */
 export interface StreamDoneEvent {
@@ -462,6 +485,7 @@ export interface StreamErrorEvent {
 export type StreamEvent =
     | StreamChunkEvent
     | StreamCitationsEvent
+    | StreamMetadataEvent
     | StreamDoneEvent
     | StreamErrorEvent;
 
@@ -473,6 +497,8 @@ export interface StreamChatCallbacks {
     onChunk?: (content: string) => void;
     /** Called when citations are received */
     onCitations?: (citations: CitationResponse[]) => void;
+    /** Called when metadata is received */
+    onMetadata?: (metadata: Record<string, any>) => void;
     /** Called when stream completes successfully */
     onDone?: (conversationId: string, executionTimeMs: number) => void;
     /** Called when an error occurs */

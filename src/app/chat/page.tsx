@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { ChatBubble } from "@/components/chat/ChatBubble"
 import { ChatInput } from "@/components/chat/ChatInput"
 import { ChatTools } from "@/components/chat/ChatTools"
+import { DocumentAttachment } from "@/components/chat/DocumentAttachment"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -19,6 +20,7 @@ interface Message {
     role: "user" | "assistant"
     content: string
     citations?: CitationResponse[]
+    document_name?: string | null
 }
 
 export default function ChatPage() {
@@ -36,7 +38,7 @@ export default function ChatPage() {
     const [conversationId, setConversationId] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [insufficientTokens, setInsufficientTokens] = useState(false)
-    const [collectorType, setCollectorType] = useState<'rag' | 'qrag' | 'agent'>('rag')
+    const [collectorType, setCollectorType] = useState<'rag' | 'qrag' | 'agent' | 'matrix' | 'research'>('matrix')
     const scrollRef = useRef<HTMLDivElement>(null)
     const abortControllerRef = useRef<AbortController | null>(null)
 
@@ -68,8 +70,12 @@ export default function ChatPage() {
         // Clear any previous error
         setError(null)
 
-        // Add user message immediately
-        const userMessage: Message = { role: "user", content }
+        // Add user message immediately with optimistic document name
+        const userMessage: Message = {
+            role: "user",
+            content,
+            document_name: file ? file.name : null
+        }
         setMessages(prev => [...prev, userMessage])
 
         // Start loading state
@@ -103,6 +109,32 @@ export default function ChatPage() {
                     },
                     onCitations: (citations) => {
                         streamCitations = citations
+                    },
+                    onMetadata: (metadata) => {
+                        if (metadata.document_name) {
+                            // Update the last message (which is the user message we just sent) with confirmed document name
+                            setMessages(prev => {
+                                const newMessages = [...prev]
+                                const lastIndex = newMessages.length - 1
+                                // Ensure we are updating a user message
+                                if (lastIndex >= 0 && newMessages[lastIndex].role === 'user') {
+                                    newMessages[lastIndex] = {
+                                        ...newMessages[lastIndex],
+                                        document_name: metadata.document_name
+                                    }
+                                } else {
+                                    // Fallback: search backwards for the last user message
+                                    const lastUserIndex = newMessages.findLastIndex(m => m.role === 'user');
+                                    if (lastUserIndex >= 0) {
+                                        newMessages[lastUserIndex] = {
+                                            ...newMessages[lastUserIndex],
+                                            document_name: metadata.document_name
+                                        }
+                                    }
+                                }
+                                return newMessages
+                            })
+                        }
                     },
                     onDone: (newConversationId, executionTimeMs) => {
                         console.log(`Stream completed in ${executionTimeMs}ms`)
@@ -190,6 +222,24 @@ export default function ChatPage() {
                     setConversationId(response.conversation_id)
                     router.replace(`/chat/${response.conversation_id}`, { scroll: false })
                 }
+
+                if (response.document_name) {
+                    // Update the last user message with confirmed document name
+                    setMessages(prev => {
+                        const newMessages = [...prev]
+                        // Identify the message we just sent. It should be the last one if we haven't added assistant response yet.
+                        // Actually, we added user message at start. So it is the last message in `prev` before we add assistant message.
+                        const lastUserIndex = newMessages.findLastIndex(m => m.role === 'user');
+                        if (lastUserIndex >= 0) {
+                            newMessages[lastUserIndex] = {
+                                ...newMessages[lastUserIndex],
+                                document_name: response.document_name
+                            }
+                        }
+                        return newMessages
+                    })
+                }
+
 
                 if (user && user.available_tokens > 0) {
                     updateTokenBalance(user.available_tokens - 1)
@@ -398,18 +448,25 @@ export default function ChatPage() {
                                 </div>
                             )}
 
-                            {messages.map((message, idx) => (
-                                <ChatBubble
-                                    key={idx}
-                                    role={message.role}
-                                    content={message.content}
-                                    citations={message.citations}
-                                    onEdit={setInputMessage}
-                                    messageIndex={idx}
-                                    conversationId={conversationId ?? undefined}
-                                    testModeEnabled={testModeEnabled}
-                                />
-                            ))}
+                            {messages.map((message, idx) => {
+                                return (
+                                    <div key={idx} className="flex flex-col w-full">
+                                        {message.document_name && (
+                                            <DocumentAttachment documentName={message.document_name} />
+                                        )}
+                                        <ChatBubble
+                                            role={message.role}
+                                            content={message.content}
+                                            citations={message.citations}
+                                            onEdit={setInputMessage}
+                                            messageIndex={idx}
+                                            conversationId={conversationId ?? undefined}
+                                            testModeEnabled={testModeEnabled}
+                                        />
+                                    </div>
+                                );
+                            })}
+
 
                             {isTyping && (
                                 <div className="flex gap-3 items-start">
