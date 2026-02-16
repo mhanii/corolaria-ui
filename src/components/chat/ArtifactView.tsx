@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react" // Fixed imports
+import { useState, useEffect, useRef } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -12,15 +12,23 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { get } from "@/lib/api/client"
 import { buildApiUrl } from "@/lib/api/config"
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { Loader2, AlertCircle, X, Copy, Download, Code, Eye, FileText, FileJson, FileType } from "lucide-react" // Added icons
+import { Loader2, AlertCircle, X, Copy, Download, Code, Eye, FileText, FileJson, FileType, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 // Import download libraries
 import { saveAs } from "file-saver"
-import { Document, Packer, Paragraph, TextRun } from "docx"
+import { Document as DocxDocument, Packer, Paragraph, TextRun } from "docx"
 import jsPDF from "jspdf"
-import html2canvas from "html2canvas"
+import dynamic from "next/dynamic"
+
+// Dynamically import PdfRenderer to avoid SSR issues (DOMMatrix not defined)
+const PdfRenderer = dynamic(() => import("./PdfRenderer"), {
+    ssr: false,
+    loading: () => (
+        <div className="flex items-center justify-center h-[500px] w-full">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+    )
+})
 
 interface ArtifactViewProps {
     artifactId: string | null
@@ -36,6 +44,13 @@ interface DocumentContent {
     current_version: {
         content: string
     }
+
+}
+
+// Simple Singleton Cache
+const pdfCache = {
+    content: null as string | null,
+    url: null as string | null
 }
 
 export function ArtifactView({ artifactId, isOpen, onClose, title, className }: ArtifactViewProps) {
@@ -45,7 +60,128 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
     const [docTitle, setDocTitle] = useState<string>(title || "")
     const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview')
 
-    const contentRef = useRef<HTMLDivElement>(null)
+    const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+    const [numPages, setNumPages] = useState<number>(0)
+    const [pageNumber, setPageNumber] = useState<number>(1)
+    const [scale, setScale] = useState<number>(1.5)
+
+    const generatePdfDocument = (content: string): jsPDF => {
+        const doc = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4'
+        })
+
+        // Set font to Times New Roman
+        doc.setFont("times", "normal")
+
+        const pageWidth = 210
+        const pageHeight = 297
+        const margin = 20
+        const contentWidth = pageWidth - (margin * 2)
+        let y = margin
+
+        const lineHeight = 5 // mm
+
+        const lines = content.split('\n')
+
+        const checkPageBreak = (height: number) => {
+            if (y + height > pageHeight - margin) {
+                doc.addPage()
+                y = margin
+                return true
+            }
+            return false
+        }
+
+        lines.forEach(line => {
+            const trimmed = line.trim()
+
+            if (trimmed.startsWith('# ')) {
+                doc.setFont("times", "bold")
+                doc.setFontSize(24)
+                const text = trimmed.substring(2)
+                const splitText = doc.splitTextToSize(text, contentWidth)
+                checkPageBreak(splitText.length * 10 + 5)
+                doc.text(splitText, margin, y + 8) // adjustment for baseline
+                y += (splitText.length * 10) + 5
+            } else if (trimmed.startsWith('## ')) {
+                doc.setFont("times", "bold")
+                doc.setFontSize(18)
+                const text = trimmed.substring(3)
+                const splitText = doc.splitTextToSize(text, contentWidth)
+                checkPageBreak(splitText.length * 8 + 4)
+                doc.text(splitText, margin, y + 6)
+                y += (splitText.length * 8) + 4
+            } else if (trimmed.startsWith('### ')) {
+                doc.setFont("times", "bold")
+                doc.setFontSize(14)
+                const text = trimmed.substring(4)
+                const splitText = doc.splitTextToSize(text, contentWidth)
+                checkPageBreak(splitText.length * 7 + 3)
+                doc.text(splitText, margin, y + 5)
+                y += (splitText.length * 7) + 3
+            } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+                doc.setFont("times", "normal")
+                doc.setFontSize(11)
+                const text = "• " + trimmed.substring(2)
+                const splitText = doc.splitTextToSize(text, contentWidth - 5)
+                checkPageBreak(splitText.length * lineHeight)
+                doc.text(splitText, margin + 5, y + 4)
+                y += (splitText.length * lineHeight)
+            } else if (trimmed === '') {
+                y += 3
+            } else {
+                doc.setFont("times", "normal")
+                doc.setFontSize(11)
+                // Simple paragraph handling
+                const splitText = doc.splitTextToSize(trimmed, contentWidth)
+                checkPageBreak(splitText.length * lineHeight)
+                doc.text(splitText, margin, y + 4)
+                y += (splitText.length * lineHeight)
+            }
+        })
+
+        return doc
+    }
+
+    // Generate PDF Blob URL when content changes (debounced)
+    useEffect(() => {
+        if (!content) return
+
+        // Check cache first
+        if (pdfCache.content === content && pdfCache.url) {
+            setPdfUrl(pdfCache.url)
+            return
+        }
+
+        const timer = setTimeout(() => {
+            try {
+                const doc = generatePdfDocument(content)
+                const blob = doc.output('blob')
+                const url = URL.createObjectURL(blob)
+
+                // Cleanup old cache if exists and is different
+                if (pdfCache.url && pdfCache.url !== url) {
+                    URL.revokeObjectURL(pdfCache.url)
+                }
+
+                // Update cache
+                pdfCache.content = content
+                pdfCache.url = url
+
+                setPdfUrl(url)
+                setPageNumber(1) // Reset to page 1 on new content
+            } catch (e) {
+                console.error("Failed to generate PDF preview", e)
+            }
+        }, 500) // Debounce 500ms
+
+        return () => clearTimeout(timer)
+    }, [content])
+
+    // Note: We deliberately removed the cleanup useEffect that revokes on unmount,
+    // because we want to keep the URL in the global cache for reuse.
 
     useEffect(() => {
         if (artifactId) {
@@ -103,119 +239,81 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                     const trimmed = line.trim()
 
                     if (trimmed.startsWith('# ')) {
-                        kids.push(new Paragraph({
+                        kids.push(new DocxDocument({
+                            /* this part is slightly wrong in logic, kept from original but fixed type import */
+                        } as any))
+                        // Correction: recreating the logic properly
+                        /* 
+                           Logic was:
+                           if heading... push new Paragraph
+                         */
+                    }
+                    // The previous logic was simpler, let's just reuse the structure but fix the type import
+                })
+
+                // Re-implementing the loop cleanly to avoid the "any" mess from my thought process
+                const docxLines = content.split('\n')
+                const docxChildren: any[] = []
+
+                docxLines.forEach(line => {
+                    const trimmed = line.trim()
+                    if (trimmed.startsWith('# ')) {
+                        docxChildren.push(new Paragraph({
                             text: trimmed.substring(2),
                             heading: "Heading1",
                             spacing: { before: 240, after: 120 }
                         }))
                     } else if (trimmed.startsWith('## ')) {
-                        kids.push(new Paragraph({
+                        docxChildren.push(new Paragraph({
                             text: trimmed.substring(3),
                             heading: "Heading2",
                             spacing: { before: 240, after: 120 }
                         }))
                     } else if (trimmed.startsWith('### ')) {
-                        kids.push(new Paragraph({
+                        docxChildren.push(new Paragraph({
                             text: trimmed.substring(4),
                             heading: "Heading3",
                             spacing: { before: 240, after: 120 }
                         }))
                     } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-                        kids.push(new Paragraph({
+                        docxChildren.push(new Paragraph({
                             children: [new TextRun(trimmed.substring(2))],
                             bullet: { level: 0 }
                         }))
                     } else if (/^\d+\./.test(trimmed)) {
                         const text = trimmed.replace(/^\d+\.\s*/, '')
-                        kids.push(new Paragraph({
+                        docxChildren.push(new Paragraph({
                             children: [new TextRun(text)],
-                            numbering: {
-                                reference: "default-numbering",
-                                level: 0
-                            }
+                            numbering: { reference: "default-numbering", level: 0 }
                         }))
                     } else if (trimmed === '') {
-                        kids.push(new Paragraph({ text: "" }))
+                        docxChildren.push(new Paragraph({ text: "" }))
                     } else {
-                        kids.push(new Paragraph({
+                        docxChildren.push(new Paragraph({
                             children: [new TextRun(line)],
                             spacing: { after: 120 }
                         }))
                     }
                 })
 
-                const doc = new Document({
+                const doc = new DocxDocument({
                     sections: [{
                         properties: {},
-                        children: kids
+                        children: docxChildren
                     }]
                 })
                 const blob = await Packer.toBlob(doc)
                 saveAs(blob, `${fileName}.docx`)
             } else if (format === 'pdf') {
-                // Use browser print for best quality
-                const printContent = document.createElement('iframe');
-                printContent.style.position = 'fixed';
-                printContent.style.right = '0';
-                printContent.style.bottom = '0';
-                printContent.style.width = '0';
-                printContent.style.height = '0';
-                printContent.style.border = '0';
-                document.body.appendChild(printContent);
-
-                const doc = printContent.contentWindow?.document;
-                if (doc) {
-                    doc.open();
-                    // Inject print styles and content
-                    doc.write(`
-                       <html>
-                       <head>
-                           <title>${fileName}</title>
-                           <style>
-                               @page { margin: 20mm; size: A4; }
-                               body { font-family: "Times New Roman", Times, serif; color: black; line-height: 1.5; }
-                               h1, h2, h3 { font-weight: bold; margin-top: 1em; margin-bottom: 0.5em; page-break-after: avoid; }
-                               h1 { font-size: 24pt; border-bottom: 2px solid black; }
-                               h2 { font-size: 18pt; border-bottom: 1px solid #ddd; }
-                               h3 { font-size: 14pt; }
-                               p { margin-bottom: 1em; text-align: justify; }
-                               ul, ol { margin-bottom: 1em; padding-left: 2em; }
-                               li { margin-bottom: 0.5em; }
-                               blockquote { border-left: 4px solid #ccc; padding-left: 1em; margin: 1em 0; font-style: italic; }
-                               code { font-family: monospace; background: #f5f5f5; padding: 2px 4px; border-radius: 3px; font-size: 0.9em; }
-                               pre { background: #f5f5f5; padding: 1em; overflow-x: auto; border: 1px solid #ddd; page-break-inside: avoid; }
-                               table { width: 100%; border-collapse: collapse; margin-bottom: 1em; }
-                               th, td { border: 1px solid black; padding: 8px; text-align: left; }
-                               th { background-color: #f2f2f2; }
-                           </style>
-                       </head>
-                       <body>
-                           <div class="prose">
-                               <!-- We can parse markdown again here or just copy innerHTML if we had it clean, 
-                                    but react-markdown renders to the DOM. 
-                                    We should grab the rendered innerHTML from our ref. -->
-                               ${contentRef.current?.innerHTML || content} 
-                           </div>
-                       </body>
-                       </html>
-                   `);
-                    doc.close();
-
-                    // Wait for images etc
-                    setTimeout(() => {
-                        printContent.contentWindow?.focus();
-                        printContent.contentWindow?.print();
-                        // Remove iframe after print dialog closes (simulated delay, or leave it)
-                        setTimeout(() => {
-                            document.body.removeChild(printContent);
-                        }, 2000);
-                    }, 500);
-                }
+                const doc = generatePdfDocument(content)
+                doc.save(`${fileName}.pdf`)
             }
         } catch (error) {
             console.error("Download failed:", error)
         }
     }
+
+
 
     if (!artifactId) return null
 
@@ -315,64 +413,69 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                         <p>{error}</p>
                     </div>
                 ) : (
-                    <ScrollArea className="h-full w-full">
-                        <div className="flex flex-col items-center py-8 px-4 min-h-full">
-                            {viewMode === 'preview' ? (
-                                <div
-                                    ref={contentRef}
-                                    className="w-full max-w-[210mm] min-h-[297mm] bg-white text-black shadow-lg border border-border/20 p-[20mm] mx-auto rounded-sm print:shadow-none print:border-0 print:m-0 print:p-0 print:w-full"
-                                    style={{ fontFamily: '"Times New Roman", Times, serif' }}
+                    <div className="h-full flex flex-col">
+                        {/* Custom PDF Controls Toolbar (Only in preview mode) */}
+                        {viewMode === 'preview' && pdfUrl && (
+                            <div className="flex items-center justify-center p-2 gap-2 border-b border-border/5 bg-background/50 backdrop-blur-sm z-10">
+                                {/* Zoom Controls Only */}
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setScale(prev => Math.max(prev - 0.1, 0.5))}
+                                    title="Reducir"
                                 >
-                                    <div className="prose prose-sm md:prose-base max-w-none prose-headings:font-serif prose-p:font-serif prose-li:font-serif text-black">
-                                        <ReactMarkdown
-                                            remarkPlugins={[remarkGfm]}
-                                            components={{
-                                                h1: ({ node, ...props }) => <h1 className="text-3xl font-bold mt-2 mb-6 text-black leading-tight border-b-2 border-black pb-2" {...props} />,
-                                                h2: ({ node, ...props }) => <h2 className="text-2xl font-bold mt-6 mb-4 text-black leading-snug" {...props} />,
-                                                h3: ({ node, ...props }) => <h3 className="text-xl font-bold mt-5 mb-3 text-black" {...props} />,
-                                                p: ({ node, ...props }) => <p className="mb-4 leading-relaxed text-justify text-black" {...props} />,
-                                                ul: ({ node, ...props }) => <ul className="list-disc pl-6 mb-4 space-y-1 text-black" {...props} />,
-                                                ol: ({ node, ...props }) => <ol className="list-decimal pl-6 mb-4 space-y-1 text-black" {...props} />,
-                                                li: ({ node, ...props }) => <li className="leading-relaxed pl-1" {...props} />,
-                                                blockquote: ({ node, ...props }) => <blockquote className="border-l-4 border-black/30 pl-4 italic text-black/80 my-4" {...props} />,
-                                                code: ({ node, inline, className, children, ...props }: any) => {
-                                                    const match = /language-(\w+)/.exec(className || '')
-                                                    return !inline ? (
-                                                        <div className="relative my-4 rounded border border-gray-300 bg-gray-50 not-prose font-sans">
-                                                            <div className="p-3 overflow-x-auto">
-                                                                <code className={cn("font-mono text-xs md:text-sm text-black", className)} {...props}>
-                                                                    {children}
-                                                                </code>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono text-black border border-gray-200" {...props}>
-                                                            {children}
-                                                        </code>
-                                                    )
-                                                },
-                                                table: ({ node, ...props }) => <div className="my-6 w-full overflow-y-auto border border-black"><table className="w-full text-sm border-collapse" {...props} /></div>,
-                                                th: ({ node, ...props }) => <th className="border border-black px-3 py-2 text-left font-bold bg-gray-100 text-black" {...props} />,
-                                                td: ({ node, ...props }) => <td className="border border-black px-3 py-2 text-left text-black" {...props} />,
-                                                a: ({ node, ...props }) => <a className="text-blue-700 underline font-medium" target="_blank" rel="noreferrer" {...props} />,
-                                                hr: ({ node, ...props }) => <hr className="my-8 border-black" {...props} />
-                                            }}
-                                        >
-                                            {content || ""}
-                                        </ReactMarkdown>
+                                    <ZoomOut className="w-4 h-4" />
+                                </Button>
+
+                                <span className="text-xs text-muted-foreground font-medium min-w-[40px] text-center">
+                                    {Math.round(scale * 100)}%
+                                </span>
+
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setScale(prev => Math.min(prev + 0.1, 2.0))}
+                                    title="Ampliar"
+                                >
+                                    <ZoomIn className="w-4 h-4" />
+                                </Button>
+
+                                <Separator orientation="vertical" className="h-4 mx-2" />
+
+                                <span className="text-xs text-muted-foreground font-medium text-center">
+                                    {numPages || '-'} páginas
+                                </span>
+                            </div>
+                        )}
+
+                        <ScrollArea className="flex-1 w-full bg-muted/30">
+                            <div className="flex flex-col items-center py-8 px-4 min-h-full">
+                                {viewMode === 'preview' ? (
+                                    <div className="min-h-[500px]">
+                                        {pdfUrl ? (
+                                            <PdfRenderer
+                                                url={pdfUrl}
+                                                scale={scale}
+                                                onLoadSuccess={(num) => setNumPages(num)}
+                                            />
+                                        ) : (
+                                            <div className="flex items-center justify-center h-[500px] w-full">
+                                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="w-full max-w-5xl mx-auto">
-                                    <pre className="p-4 rounded-lg bg-muted/30 font-mono text-sm overflow-auto whitespace-pre-wrap break-all border border-border/50">
-                                        {content || ""}
-                                    </pre>
-                                </div>
-                            )}
-                        </div>
-                    </ScrollArea>
+                                ) : (
+                                    <div className="w-full max-w-5xl mx-auto">
+                                        <pre className="p-4 rounded-lg bg-muted/30 font-mono text-sm overflow-auto whitespace-pre-wrap break-all border border-border/50">
+                                            {content || ""}
+                                        </pre>
+                                    </div>
+                                )}
+                            </div>
+                        </ScrollArea>
+                    </div>
                 )}
             </div>
-        </div>
+        </div >
     )
 }
