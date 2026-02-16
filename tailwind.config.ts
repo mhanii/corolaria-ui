@@ -58,6 +58,7 @@ const config: Config = {
             },
             fontFamily: {
                 sans: ['var(--font-body)', "serif"],
+                serif: ["Times New Roman", "Times", "serif"],
                 display: ['var(--font-body)', "serif"],
                 mono: ['var(--font-sans)', "sans-serif"], // Using mono for Inter/Chat
             },

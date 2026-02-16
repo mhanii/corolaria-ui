@@ -300,6 +300,12 @@ export async function streamChatMessage(
                                     case 'citations':
                                         callbacks.onCitations?.(data.citations);
                                         break;
+                                    case 'artifact':
+                                        // Handle artifact event
+                                        if (data.artifact_type === 'document') {
+                                            callbacks.onArtifact?.(data.artifact, data.auto_open);
+                                        }
+                                        break;
                                     case 'metadata':
                                         // Pass the metadata (e.g. { document_name: ... })
                                         callbacks.onMetadata?.(data);

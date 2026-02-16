@@ -29,6 +29,7 @@ export type {
     UserInfo,
     ConversationSummary,
     ConversationListResponse,
+    ArtifactSummary,
     // Streaming types
     StreamEvent,
     StreamChunkEvent,

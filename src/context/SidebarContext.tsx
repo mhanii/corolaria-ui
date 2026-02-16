@@ -9,6 +9,8 @@ interface SidebarContextType {
     open: () => void
     close: () => void
     toggleCollapse: () => void
+    collapse: () => void
+    expand: () => void
     refreshTrigger: number
     triggerRefresh: () => void
 }
@@ -24,10 +26,16 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
     const open = useCallback(() => setIsOpen(true), [])
     const close = useCallback(() => setIsOpen(false), [])
     const toggleCollapse = useCallback(() => setIsCollapsed(prev => !prev), [])
+    const collapse = useCallback(() => setIsCollapsed(true), [])
+    const expand = useCallback(() => setIsCollapsed(false), [])
     const triggerRefresh = useCallback(() => setRefreshTrigger(prev => prev + 1), [])
 
     return (
-        <SidebarContext.Provider value={{ isOpen, isCollapsed, toggle, open, close, toggleCollapse, refreshTrigger, triggerRefresh }}>
+        <SidebarContext.Provider value={{
+            isOpen, isCollapsed, toggle, open, close,
+            toggleCollapse, collapse, expand,
+            refreshTrigger, triggerRefresh
+        }}>
             {children}
         </SidebarContext.Provider>
     )

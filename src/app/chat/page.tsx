@@ -6,30 +6,36 @@ import { ChatBubble } from "@/components/chat/ChatBubble"
 import { ChatInput } from "@/components/chat/ChatInput"
 import { ChatTools } from "@/components/chat/ChatTools"
 import { DocumentAttachment } from "@/components/chat/DocumentAttachment"
+import { ArtifactView } from "@/components/chat/ArtifactView"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { FileText, Search, Scale, AlertCircle, Loader2, Coins, Sparkles } from "lucide-react"
-import { streamChatMessage, sendChatMessage, deleteConversation, CitationResponse } from "@/lib/api"
+import { streamChatMessage, sendChatMessage, deleteConversation, CitationResponse, ArtifactSummary } from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
 import { useBeta } from "@/context/BetaContext"
 import { useSidebar } from "@/context/SidebarContext"
 import { Logo, LogoLoader } from "@/components/ui/Logo"
+import { cn } from "@/lib/utils"
 
 interface Message {
     role: "user" | "assistant"
     content: string
     citations?: CitationResponse[]
     document_name?: string | null
+    artifacts?: ArtifactSummary[] | null
 }
 
 export default function ChatPage() {
     const router = useRouter()
     const { isAuthenticated, isLoading: isAuthLoading, user, updateTokenBalance } = useAuth()
     const { testModeEnabled, openSurveyModal, refreshStatus } = useBeta()
-    const { triggerRefresh } = useSidebar()
+    const { triggerRefresh, collapse: collapseSidebar } = useSidebar()
 
     const [messages, setMessages] = useState<Message[]>([])
+
+    const [streamingCitations, setStreamingCitations] = useState<CitationResponse[]>([])
+    const [streamingArtifacts, setStreamingArtifacts] = useState<ArtifactSummary[]>([])
 
     const [isTyping, setIsTyping] = useState(false)
     const [isStreaming, setIsStreaming] = useState(false)
@@ -41,6 +47,11 @@ export default function ChatPage() {
     const [collectorType, setCollectorType] = useState<'rag' | 'qrag' | 'agent' | 'matrix' | 'research'>('matrix')
     const scrollRef = useRef<HTMLDivElement>(null)
     const abortControllerRef = useRef<AbortController | null>(null)
+
+    // Artifact state
+    const [viewArtifactId, setViewArtifactId] = useState<string | null>(null)
+    const [viewArtifactTitle, setViewArtifactTitle] = useState("")
+    const [isArtifactViewOpen, setIsArtifactViewOpen] = useState(false)
 
     // Use raw streaming content directly (no typewriter effect)
 
@@ -84,6 +95,8 @@ export default function ChatPage() {
 
         let accumulatedContent = ""
         let streamCitations: CitationResponse[] = []
+        let streamArtifacts: ArtifactSummary[] = []
+        let streamMetadata: any = {}
         let streamFailed = false
 
         try {
@@ -109,8 +122,19 @@ export default function ChatPage() {
                     },
                     onCitations: (citations) => {
                         streamCitations = citations
+                        setStreamingCitations(citations)
+                    },
+                    onArtifact: (artifact, autoOpen) => {
+                        streamArtifacts.push(artifact)
+                        if (autoOpen) {
+                            openArtifact(artifact.id, artifact.title)
+                        }
+                        setStreamingArtifacts(prev => [...prev, artifact])
                     },
                     onMetadata: (metadata) => {
+                        // Merge metadata
+                        streamMetadata = { ...streamMetadata, ...metadata }
+
                         if (metadata.document_name) {
                             // Update the last message (which is the user message we just sent) with confirmed document name
                             setMessages(prev => {
@@ -155,11 +179,14 @@ export default function ChatPage() {
                         const assistantMessage: Message = {
                             role: "assistant",
                             content: accumulatedContent,
-                            citations: streamCitations
+                            citations: streamCitations,
+                            artifacts: streamMetadata.created_documents || streamArtifacts
                         }
                         setMessages(prev => [...prev, assistantMessage])
                         setIsStreaming(false)
                         setStreamingContent("")
+                        setStreamingCitations([])
+                        setStreamingArtifacts([])
                     },
                     onError: (message, details) => {
                         console.error('Stream error:', message, details)
@@ -198,6 +225,8 @@ export default function ChatPage() {
                         setIsTyping(false)
                         setIsStreaming(false)
                         setStreamingContent("")
+                        setStreamingCitations([])
+                        setStreamingArtifacts([])
                     }
                 }
             )
@@ -248,7 +277,8 @@ export default function ChatPage() {
                 const assistantMessage: Message = {
                     role: "assistant",
                     content: response.response,
-                    citations: response.citations
+                    citations: response.citations,
+                    // Note: non-streaming also handled if we update response types later
                 }
                 setMessages(prev => [...prev, assistantMessage])
 
@@ -273,6 +303,8 @@ export default function ChatPage() {
                 setIsTyping(false)
                 setIsStreaming(false)
                 setStreamingContent("")
+                setStreamingCitations([])
+                setStreamingArtifacts([])
             }
         }
     }
@@ -307,6 +339,13 @@ export default function ChatPage() {
         }
     }
 
+    const openArtifact = (id: string, title: string) => {
+        collapseSidebar() // Auto collapse desktop sidebar (or close mobile)
+        setViewArtifactId(id)
+        setViewArtifactTitle(title)
+        setIsArtifactViewOpen(true)
+    }
+
     const suggestions = [
         { icon: Search, text: "¿Qué dice la ley sobre el despido improcedente?" },
         { icon: Scale, text: "Explícame los derechos de los inquilinos" },
@@ -328,192 +367,215 @@ export default function ChatPage() {
     }
 
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] overflow-hidden max-w-5xl mx-auto w-full">
-            {messages.length > 0 && (
-                <ChatTools
-                    messages={messages}
-                    onDelete={handleDeleteConversation}
-                />
-            )}
+        <div className="flex h-[calc(100vh-4rem)] overflow-hidden w-full">
+            <div className={cn(
+                "flex flex-col h-full transition-all duration-300 ease-in-out",
+                isArtifactViewOpen ? "w-1/2 border-r border-border" : "w-full max-w-5xl mx-auto"
+            )}>
+                {messages.length > 0 && (
+                    <ChatTools
+                        messages={messages}
+                        onDelete={handleDeleteConversation}
+                    />
+                )}
 
-            {messages.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center w-full pb-20">
-                    <div className="w-full space-y-8 px-4 md:px-6 flex flex-col items-center">
-                        <div className="text-center space-y-6 mb-8">
+                {messages.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center w-full pb-20">
+                        <div className="w-full space-y-8 px-4 md:px-6 flex flex-col items-center">
+                            <div className="text-center space-y-6 mb-8">
 
 
-                            <h1 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient bg-300% leading-tight px-4">
-                                ¿En qué puedo ayudarte hoy?
-                            </h1>
+                                <h1 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient bg-300% leading-tight px-4">
+                                    ¿En qué puedo ayudarte hoy?
+                                </h1>
+                            </div>
+
+                            <div className="w-full">
+                                <ChatInput
+                                    onSendMessage={handleSendMessage}
+                                    message={inputMessage}
+                                    setMessage={setInputMessage}
+                                    collectorType={collectorType}
+                                    onCollectorTypeChange={setCollectorType}
+                                    isNewConversation={true}
+                                />
+                            </div>
+
+                            {/* Desktop: Grid layout */}
+                            <div className="hidden md:grid md:grid-cols-3 gap-3 w-full">
+                                {suggestions.map((suggestion, idx) => (
+                                    <Card
+                                        key={idx}
+                                        className="p-4 cursor-pointer hover:shadow-md hover:border-accent/50 transition-all duration-300 group bg-card/50"
+                                        onClick={() => handleSendMessage(suggestion.text)}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors flex-shrink-0">
+                                                <suggestion.icon className="w-5 h-5 text-accent" />
+                                            </div>
+                                            <p className="text-sm font-medium text-foreground leading-tight">
+                                                {suggestion.text}
+                                            </p>
+                                        </div>
+                                    </Card>
+                                ))}
+                            </div>
+
+                            {/* Mobile: 2+1 grid layout with consistent box sizes */}
+                            <div className="md:hidden flex flex-col gap-2 w-full">
+                                <div className="grid grid-cols-2 gap-2">
+                                    {suggestions.slice(0, 2).map((suggestion, idx) => (
+                                        <button
+                                            key={idx}
+                                            className="flex items-center gap-2 px-3 py-2.5 h-14 rounded-lg border border-border bg-card/50 hover:bg-accent/10 hover:border-accent/50 transition-all text-left"
+                                            onClick={() => handleSendMessage(suggestion.text)}
+                                        >
+                                            <suggestion.icon className="w-4 h-4 text-accent flex-shrink-0" />
+                                            <span className="text-xs font-medium text-foreground line-clamp-2">{suggestion.text}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                {/* Centered third suggestion */}
+                                <div className="flex justify-center">
+                                    {(() => {
+                                        const ThirdIcon = suggestions[2].icon;
+                                        return (
+                                            <button
+                                                className="flex items-center gap-2 px-3 py-2.5 h-14 w-1/2 rounded-lg border border-border bg-card/50 hover:bg-accent/10 hover:border-accent/50 transition-all text-left justify-center"
+                                                onClick={() => handleSendMessage(suggestions[2].text)}
+                                            >
+                                                <ThirdIcon className="w-4 h-4 text-accent flex-shrink-0" />
+                                                <span className="text-xs font-medium text-foreground line-clamp-2">{suggestions[2].text}</span>
+                                            </button>
+                                        );
+                                    })()}
+                                </div>
+                            </div>
                         </div>
+                    </div>
+                ) : (
+                    <>
+                        <ScrollArea className="flex-1">
+                            <div className="space-y-4 md:space-y-6 px-3 md:px-6 py-4 md:py-6">
+                                {/* Insufficient tokens banner */}
+                                {insufficientTokens && (
+                                    <div className="flex items-center gap-2 p-4 rounded-lg bg-accent/10 border border-accent/20 text-accent">
+                                        <Coins className="w-5 h-5 flex-shrink-0" />
+                                        <div className="flex-1">
+                                            <p className="font-medium">Sin tokens disponibles</p>
+                                            <p className="text-sm opacity-80">
+                                                {testModeEnabled
+                                                    ? 'Completa una encuesta para obtener más tokens.'
+                                                    : 'Contacta al administrador para obtener más tokens.'}
+                                            </p>
+                                        </div>
+                                        {testModeEnabled && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={handleRefillClick}
+                                                className="gap-1"
+                                            >
+                                                <Sparkles className="w-4 h-4" />
+                                                Obtener tokens
+                                            </Button>
+                                        )}
+                                    </div>
+                                )}
 
-                        <div className="w-full">
+                                {/* Error banner */}
+                                {error && !insufficientTokens && (
+                                    <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
+                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                        <span>{error}</span>
+                                    </div>
+                                )}
+
+                                {messages.map((message, idx) => {
+                                    return (
+                                        <div key={idx} className="flex flex-col w-full">
+                                            {message.document_name && (
+                                                <DocumentAttachment documentName={message.document_name} />
+                                            )}
+                                            <ChatBubble
+                                                role={message.role}
+                                                content={message.content}
+                                                citations={message.citations}
+                                                onEdit={setInputMessage}
+                                                messageIndex={idx}
+                                                conversationId={conversationId ?? undefined}
+                                                testModeEnabled={testModeEnabled}
+                                                artifacts={message.artifacts}
+                                                onArtifactClick={openArtifact}
+                                            />
+                                        </div>
+                                    );
+                                })}
+
+
+                                {isTyping && (
+                                    <div className="flex gap-3 items-start">
+                                        <div className="flex-shrink-0">
+                                            <Logo size="md" animate />
+                                        </div>
+                                        <div className="flex-1 space-y-3 mt-1">
+                                            {/* Text with glowing shimmer effect */}
+                                            <p className="text-sm italic font-medium bg-gradient-to-r from-accent via-accent/60 to-accent bg-clip-text text-transparent animate-shimmer bg-[length:200%_100%]">
+                                                Analizando y buscando fuentes...
+                                            </p>
+                                            {/* Skeleton shimmer lines */}
+                                            <div className="space-y-2">
+                                                <div className="h-4 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded animate-shimmer bg-[length:200%_100%]" style={{ width: '90%' }}></div>
+                                                <div className="h-4 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded animate-shimmer bg-[length:200%_100%]" style={{ width: '75%' }}></div>
+                                                <div className="h-4 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded animate-shimmer bg-[length:200%_100%]" style={{ width: '85%' }}></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Streaming content display */}
+                                {isStreaming && (
+                                    <ChatBubble
+                                        role="assistant"
+                                        content={streamingContent}
+                                        citations={streamingCitations}
+                                        isStreaming={true}
+                                        artifacts={streamingArtifacts}
+                                        onArtifactClick={openArtifact}
+                                    />
+                                )}
+
+                                {/* Scroll anchor */}
+                                <div ref={scrollRef} />
+                            </div>
+                        </ScrollArea>
+
+                        <div className="px-3 md:px-6 pb-4 md:pb-6 pt-2 mt-auto shrink-0 animate-chat-descend">
                             <ChatInput
                                 onSendMessage={handleSendMessage}
                                 message={inputMessage}
                                 setMessage={setInputMessage}
                                 collectorType={collectorType}
                                 onCollectorTypeChange={setCollectorType}
-                                isNewConversation={true}
+                                isNewConversation={conversationId === null}
                             />
                         </div>
+                    </>
+                )}
 
-                        {/* Desktop: Grid layout */}
-                        <div className="hidden md:grid md:grid-cols-3 gap-3 w-full">
-                            {suggestions.map((suggestion, idx) => (
-                                <Card
-                                    key={idx}
-                                    className="p-4 cursor-pointer hover:shadow-md hover:border-accent/50 transition-all duration-300 group bg-card/50"
-                                    onClick={() => handleSendMessage(suggestion.text)}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center group-hover:bg-accent/20 transition-colors flex-shrink-0">
-                                            <suggestion.icon className="w-5 h-5 text-accent" />
-                                        </div>
-                                        <p className="text-sm font-medium text-foreground leading-tight">
-                                            {suggestion.text}
-                                        </p>
-                                    </div>
-                                </Card>
-                            ))}
-                        </div>
+                {/* Closing the chat column div */}
+            </div>
 
-                        {/* Mobile: 2+1 grid layout with consistent box sizes */}
-                        <div className="md:hidden flex flex-col gap-2 w-full">
-                            <div className="grid grid-cols-2 gap-2">
-                                {suggestions.slice(0, 2).map((suggestion, idx) => (
-                                    <button
-                                        key={idx}
-                                        className="flex items-center gap-2 px-3 py-2.5 h-14 rounded-lg border border-border bg-card/50 hover:bg-accent/10 hover:border-accent/50 transition-all text-left"
-                                        onClick={() => handleSendMessage(suggestion.text)}
-                                    >
-                                        <suggestion.icon className="w-4 h-4 text-accent flex-shrink-0" />
-                                        <span className="text-xs font-medium text-foreground line-clamp-2">{suggestion.text}</span>
-                                    </button>
-                                ))}
-                            </div>
-                            {/* Centered third suggestion */}
-                            <div className="flex justify-center">
-                                {(() => {
-                                    const ThirdIcon = suggestions[2].icon;
-                                    return (
-                                        <button
-                                            className="flex items-center gap-2 px-3 py-2.5 h-14 w-1/2 rounded-lg border border-border bg-card/50 hover:bg-accent/10 hover:border-accent/50 transition-all text-left justify-center"
-                                            onClick={() => handleSendMessage(suggestions[2].text)}
-                                        >
-                                            <ThirdIcon className="w-4 h-4 text-accent flex-shrink-0" />
-                                            <span className="text-xs font-medium text-foreground line-clamp-2">{suggestions[2].text}</span>
-                                        </button>
-                                    );
-                                })()}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            ) : (
-                <>
-                    <ScrollArea className="flex-1">
-                        <div className="space-y-4 md:space-y-6 px-3 md:px-6 py-4 md:py-6">
-                            {/* Insufficient tokens banner */}
-                            {insufficientTokens && (
-                                <div className="flex items-center gap-2 p-4 rounded-lg bg-accent/10 border border-accent/20 text-accent">
-                                    <Coins className="w-5 h-5 flex-shrink-0" />
-                                    <div className="flex-1">
-                                        <p className="font-medium">Sin tokens disponibles</p>
-                                        <p className="text-sm opacity-80">
-                                            {testModeEnabled
-                                                ? 'Completa una encuesta para obtener más tokens.'
-                                                : 'Contacta al administrador para obtener más tokens.'}
-                                        </p>
-                                    </div>
-                                    {testModeEnabled && (
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleRefillClick}
-                                            className="gap-1"
-                                        >
-                                            <Sparkles className="w-4 h-4" />
-                                            Obtener tokens
-                                        </Button>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Error banner */}
-                            {error && !insufficientTokens && (
-                                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-destructive text-sm">
-                                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                                    <span>{error}</span>
-                                </div>
-                            )}
-
-                            {messages.map((message, idx) => {
-                                return (
-                                    <div key={idx} className="flex flex-col w-full">
-                                        {message.document_name && (
-                                            <DocumentAttachment documentName={message.document_name} />
-                                        )}
-                                        <ChatBubble
-                                            role={message.role}
-                                            content={message.content}
-                                            citations={message.citations}
-                                            onEdit={setInputMessage}
-                                            messageIndex={idx}
-                                            conversationId={conversationId ?? undefined}
-                                            testModeEnabled={testModeEnabled}
-                                        />
-                                    </div>
-                                );
-                            })}
-
-
-                            {isTyping && (
-                                <div className="flex gap-3 items-start">
-                                    <div className="flex-shrink-0">
-                                        <Logo size="md" animate />
-                                    </div>
-                                    <div className="flex-1 space-y-3 mt-1">
-                                        {/* Text with glowing shimmer effect */}
-                                        <p className="text-sm italic font-medium bg-gradient-to-r from-accent via-accent/60 to-accent bg-clip-text text-transparent animate-shimmer bg-[length:200%_100%]">
-                                            Analizando y buscando fuentes...
-                                        </p>
-                                        {/* Skeleton shimmer lines */}
-                                        <div className="space-y-2">
-                                            <div className="h-4 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded animate-shimmer bg-[length:200%_100%]" style={{ width: '90%' }}></div>
-                                            <div className="h-4 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded animate-shimmer bg-[length:200%_100%]" style={{ width: '75%' }}></div>
-                                            <div className="h-4 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded animate-shimmer bg-[length:200%_100%]" style={{ width: '85%' }}></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Streaming content display */}
-                            {isStreaming && (
-                                <ChatBubble
-                                    role="assistant"
-                                    content={streamingContent}
-                                    isStreaming={true}
-                                />
-                            )}
-
-                            {/* Scroll anchor */}
-                            <div ref={scrollRef} />
-                        </div>
-                    </ScrollArea>
-
-                    <div className="px-3 md:px-6 pb-4 md:pb-6 pt-2 mt-auto shrink-0 animate-chat-descend">
-                        <ChatInput
-                            onSendMessage={handleSendMessage}
-                            message={inputMessage}
-                            setMessage={setInputMessage}
-                            collectorType={collectorType}
-                            onCollectorTypeChange={setCollectorType}
-                            isNewConversation={conversationId === null}
-                        />
-                    </div>
-                </>
-            )}
+            <ArtifactView
+                artifactId={viewArtifactId}
+                isOpen={isArtifactViewOpen}
+                onClose={() => setIsArtifactViewOpen(false)}
+                title={viewArtifactTitle}
+                className={cn(
+                    "w-1/2 transition-all duration-300 ease-in-out bg-background",
+                    !isArtifactViewOpen && "hidden w-0"
+                )}
+            />
         </div>
     )
 }

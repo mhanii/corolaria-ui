@@ -3,9 +3,10 @@
 import { Copy, Edit, ExternalLink, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { CitationResponse, ArticleDetailResponse, ArticleResult } from "@/lib/api/types"
+import { CitationResponse, ArticleDetailResponse, ArticleResult, ArtifactSummary } from "@/lib/api/types"
 import { getArticleByNodeId } from "@/lib/api/services/searchService"
 import { ArticleDetailsModal } from "@/components/common/ArticleDetailsModal"
+import { ArtifactChip } from "@/components/chat/ArtifactChip"
 import { FeedbackButtons } from "@/components/beta"
 import { useState, useMemo } from "react"
 // import { useRouter } from "next/navigation"
@@ -25,6 +26,10 @@ interface ChatBubbleProps {
     conversationId?: string
     /** Whether test mode is enabled for feedback buttons */
     testModeEnabled?: boolean
+    /** Artifacts (generated documents) */
+    artifacts?: ArtifactSummary[] | null
+    /** Callback when an artifact is clicked */
+    onArtifactClick?: (artifactId: string, title: string) => void
 }
 
 /**
@@ -110,8 +115,8 @@ function processMarkdownWithCitations(
         },
 
         // Standard markdown components styling
-        p: ({ children, ...props }) => <p className="mb-4 text-base leading-relaxed" {...props}>{children}</p>,
-        li: ({ children, ...props }) => <li className="text-base leading-relaxed pl-2" {...props}>{children}</li>,
+        p: ({ children, ...props }) => <p className="mb-4 text-lg leading-relaxed" {...props}>{children}</p>,
+        li: ({ children, ...props }) => <li className="text-lg leading-relaxed pl-2" {...props}>{children}</li>,
         h1: ({ children, ...props }) => <h1 className="text-4xl font-bold mb-4 mt-6" {...props}>{children}</h1>,
         h2: ({ children, ...props }) => <h2 className="text-3xl font-bold mb-3 mt-5" {...props}>{children}</h2>,
         h3: ({ children, ...props }) => <h3 className="text-2xl font-semibold mb-3 mt-4" {...props}>{children}</h3>,
@@ -158,6 +163,8 @@ export function ChatBubble({
     messageIndex,
     conversationId,
     testModeEnabled = false,
+    artifacts,
+    onArtifactClick,
 }: ChatBubbleProps) {
     // const router = useRouter()
     const [showCitations, setShowCitations] = useState(false)
@@ -208,25 +215,39 @@ export function ChatBubble({
 
     return (
         <div className={cn(
-            "flex flex-col max-w-[85%] min-w-0 group",
+            "flex flex-col max-w-[95%] min-w-0 group",
             role === "user" ? "ml-auto items-end" : "mr-auto items-start"
         )}>
             <div
                 className={cn(
-                    "rounded-2xl px-3 py-2.5 shadow-soft",
+                    "rounded-2xl px-3 py-2.5",
                     role === "user"
-                        ? "bg-accent text-accent-foreground font-medium"
-                        : "bg-card border"
+                        ? "bg-accent text-accent-foreground font-medium shadow-soft text-lg"
+                        : "text-foreground"
                 )}
             >
                 <div className={cn(
                     "break-words [overflow-wrap:anywhere]",
                     role === "assistant" && "text-foreground",
-                    role === "user" && "whitespace-pre-wrap text-base leading-relaxed"
+                    role === "user" && "whitespace-pre-wrap leading-relaxed"
                 )}>
                     {renderedContent}
                 </div>
             </div>
+
+            {/* Artifacts (Documents) */}
+            {role === "assistant" && artifacts && artifacts.length > 0 && (
+                <div className="w-full mt-2">
+                    {artifacts.map((artifact) => (
+                        <ArtifactChip
+                            key={artifact.id}
+                            id={artifact.id}
+                            title={artifact.title}
+                            onClick={() => onArtifactClick?.(artifact.id, artifact.title)}
+                        />
+                    ))}
+                </div>
+            )}
 
             {/* Citations section for assistant messages */}
             {role === "assistant" && hasCitations && (

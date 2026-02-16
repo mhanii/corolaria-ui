@@ -311,6 +311,9 @@ export interface ConversationMessageResponse {
 
     /** Name of the uploaded document, if any (message-scoped) */
     document_name?: string | null;
+
+    /** Artifacts created by this message (assistant only) */
+    artifacts?: ArtifactSummary[] | null;
 }
 
 /**
@@ -445,6 +448,30 @@ export interface StreamCitationsEvent {
     citations: CitationResponse[];
 }
 
+
+/**
+ * Summary of a created artifact (document)
+ */
+export interface ArtifactSummary {
+    /** Unique identifier */
+    id: string;
+    /** Human-readable title */
+    title: string;
+}
+
+/**
+ * Streaming partial artifact event
+ */
+export interface StreamArtifactEvent {
+    type: 'artifact';
+    /** The artifact type, e.g. "document" */
+    artifact_type: 'document';
+    /** The artifact data */
+    artifact: ArtifactSummary;
+    /** Whether the UI should auto-open this artifact */
+    auto_open: boolean;
+}
+
 /**
  * Streaming metadata event - sent after processing
  */
@@ -452,6 +479,8 @@ export interface StreamMetadataEvent {
     type: 'metadata';
     /** Document name if a file was uploaded */
     document_name?: string;
+    /** Created documents in this turn */
+    created_documents?: ArtifactSummary[];
     [key: string]: any;
 }
 
@@ -465,7 +494,10 @@ export interface StreamDoneEvent {
     /** Total processing time in milliseconds */
     execution_time_ms: number;
     /** Optional metadata */
-    metadata?: Record<string, any>;
+    metadata?: {
+        created_documents?: ArtifactSummary[];
+        [key: string]: any;
+    };
 }
 
 /**
@@ -486,6 +518,7 @@ export type StreamEvent =
     | StreamChunkEvent
     | StreamCitationsEvent
     | StreamMetadataEvent
+    | StreamArtifactEvent
     | StreamDoneEvent
     | StreamErrorEvent;
 
@@ -497,6 +530,8 @@ export interface StreamChatCallbacks {
     onChunk?: (content: string) => void;
     /** Called when citations are received */
     onCitations?: (citations: CitationResponse[]) => void;
+    /** Called when an artifact (document) is created */
+    onArtifact?: (artifact: ArtifactSummary, autoOpen: boolean) => void;
     /** Called when metadata is received */
     onMetadata?: (metadata: Record<string, any>) => void;
     /** Called when stream completes successfully */
