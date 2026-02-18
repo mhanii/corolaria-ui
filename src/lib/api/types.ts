@@ -512,6 +512,47 @@ export interface StreamErrorEvent {
 }
 
 /**
+ * Streaming status event - progress updates
+ */
+export interface StreamStatusEvent {
+    type: 'status';
+    /** Phase of the operation */
+    phase: string;
+    /** Human-readable message */
+    message?: string;
+    /** Strategy name (e.g. ResearchAgent) */
+    strategy?: string;
+    /** Research plan steps */
+    plan?: string[];
+    /** Whether this is a re-plan iteration */
+    is_replan?: boolean;
+    /** Current step index */
+    step_index?: number;
+    /** Current step text/description */
+    step_text?: string;
+    /** Current step status ('running' or 'completed') */
+    status?: 'running' | 'completed';
+    /** Agent reasoning/reflection */
+    reasoning?: string;
+    /** Whether the research is complete */
+    is_complete?: boolean;
+    /** Current step description (legacy) */
+    step?: string;
+    /** Step summary/result */
+    summary?: string;
+    /** List of past steps */
+    past_steps?: string[];
+    /** Count of evidence found */
+    results_count?: number;
+    /** Count of evidence found (legacy) */
+    evidence_count?: number;
+    /** Document name if relevant */
+    document_name?: string;
+    /** Any other phase-specific data */
+    [key: string]: any;
+}
+
+/**
  * Union type for all streaming events
  */
 export type StreamEvent =
@@ -520,7 +561,8 @@ export type StreamEvent =
     | StreamMetadataEvent
     | StreamArtifactEvent
     | StreamDoneEvent
-    | StreamErrorEvent;
+    | StreamErrorEvent
+    | StreamStatusEvent;
 
 /**
  * Callbacks for streaming chat message
@@ -534,6 +576,8 @@ export interface StreamChatCallbacks {
     onArtifact?: (artifact: ArtifactSummary, autoOpen: boolean) => void;
     /** Called when metadata is received */
     onMetadata?: (metadata: Record<string, any>) => void;
+    /** Called when status updates are received */
+    onStatus?: (status: StreamStatusEvent) => void;
     /** Called when stream completes successfully */
     onDone?: (conversationId: string, executionTimeMs: number) => void;
     /** Called when an error occurs */

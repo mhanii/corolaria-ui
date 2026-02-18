@@ -27,8 +27,17 @@ interface BetaContextType {
     /** Whether survey modal is open */
     surveyModalOpen: boolean;
 
-    /** Loading state for beta status */
+    /** Whether beta status is currently being refreshed or app is busy */
     isLoading: boolean;
+
+    /** 
+     * Whether the UI is busy with another critical operation (e.g. streaming)
+     * When true, automatic status refreshes will be deferred.
+     */
+    isBusy: boolean;
+
+    /** Set the busy state */
+    setIsBusy: (busy: boolean) => void;
 
     /** Refresh beta status from API */
     refreshStatus: () => Promise<void>;
@@ -58,6 +67,9 @@ export function BetaProvider({ children }: BetaProviderProps) {
     // Modal state
     const [surveyModalOpen, setSurveyModalOpen] = useState(false);
 
+    // Busy state
+    const [isBusy, setIsBusy] = useState(false);
+
     // Fetch beta status on auth change
     const refreshStatus = useCallback(async () => {
         if (!isAuthenticated) {
@@ -65,6 +77,11 @@ export function BetaProvider({ children }: BetaProviderProps) {
             setRequiresRefill(false);
             setSurveysCompleted(0);
             setIsLoading(false);
+            return;
+        }
+
+        // If busy (e.g. streaming), defer the refresh
+        if (isBusy) {
             return;
         }
 
@@ -90,7 +107,7 @@ export function BetaProvider({ children }: BetaProviderProps) {
         } finally {
             setIsLoading(false);
         }
-    }, [isAuthenticated, user?.available_tokens, updateTokenBalance]);
+    }, [isAuthenticated, user?.available_tokens, updateTokenBalance, isBusy]);
 
     // Initial fetch
     useEffect(() => {
@@ -116,6 +133,8 @@ export function BetaProvider({ children }: BetaProviderProps) {
         surveysCompleted,
         surveyModalOpen,
         isLoading,
+        isBusy,
+        setIsBusy,
         refreshStatus,
         openSurveyModal,
         closeSurveyModal,

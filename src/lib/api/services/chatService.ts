@@ -14,6 +14,7 @@ import {
     ConversationListResponse,
     DeleteResponse,
     StreamEvent,
+    StreamStatusEvent,
     StreamChatCallbacks,
     CitationResponse,
 } from '../types';
@@ -315,6 +316,9 @@ export async function streamChatMessage(
                                         break;
                                     case 'error':
                                         callbacks.onError?.(data.message, data.details);
+                                        break;
+                                    case 'status':
+                                        callbacks.onStatus?.(data as StreamStatusEvent);
                                         break;
                                 }
                             } catch (parseError) {

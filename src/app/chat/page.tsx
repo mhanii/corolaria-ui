@@ -10,13 +10,14 @@ import { ArtifactView } from "@/components/chat/ArtifactView"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { FileText, Search, Scale, AlertCircle, Loader2, Coins, Sparkles } from "lucide-react"
-import { streamChatMessage, sendChatMessage, deleteConversation, CitationResponse, ArtifactSummary } from "@/lib/api"
+import { FileText, Search, Scale, AlertCircle, Coins, Sparkles } from "lucide-react"
+import { streamChatMessage, sendChatMessage, deleteConversation, CitationResponse, ArtifactSummary, StreamStatusEvent } from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
 import { useBeta } from "@/context/BetaContext"
 import { useSidebar } from "@/context/SidebarContext"
 import { Logo, LogoLoader } from "@/components/ui/Logo"
 import { cn } from "@/lib/utils"
+import { StatusIndicator } from "@/components/chat/StatusIndicator"
 
 interface Message {
     role: "user" | "assistant"
@@ -29,7 +30,7 @@ interface Message {
 export default function ChatPage() {
     const router = useRouter()
     const { isAuthenticated, isLoading: isAuthLoading, user, updateTokenBalance } = useAuth()
-    const { testModeEnabled, openSurveyModal, refreshStatus } = useBeta()
+    const { testModeEnabled, openSurveyModal, setIsBusy } = useBeta()
     const { triggerRefresh, collapse: collapseSidebar } = useSidebar()
 
     const [messages, setMessages] = useState<Message[]>([])
@@ -37,6 +38,8 @@ export default function ChatPage() {
     const [streamingCitations, setStreamingCitations] = useState<CitationResponse[]>([])
     const [streamingArtifacts, setStreamingArtifacts] = useState<ArtifactSummary[]>([])
 
+    const [streamingStatus, setStreamingStatus] = useState<StreamStatusEvent | null>(null)
+    const [isPlanViewActive, setIsPlanViewActive] = useState(false)
     const [isTyping, setIsTyping] = useState(false)
     const [isStreaming, setIsStreaming] = useState(false)
     const [streamingContent, setStreamingContent] = useState("")
@@ -46,7 +49,10 @@ export default function ChatPage() {
     const [insufficientTokens, setInsufficientTokens] = useState(false)
     const [collectorType, setCollectorType] = useState<'rag' | 'qrag' | 'agent' | 'matrix' | 'research'>('matrix')
     const scrollRef = useRef<HTMLDivElement>(null)
+    const scrollAreaRef = useRef<HTMLDivElement>(null)
+    const lastUserMessageRef = useRef<HTMLDivElement>(null)
     const abortControllerRef = useRef<AbortController | null>(null)
+    const [dynamicMinHeight, setDynamicMinHeight] = useState<string | number>('auto')
 
     // Artifact state
     const [viewArtifactId, setViewArtifactId] = useState<string | null>(null)
@@ -62,20 +68,72 @@ export default function ChatPage() {
         }
     }, [isAuthenticated, isAuthLoading, router])
 
-    // Auto-scroll to bottom when new messages arrive or streaming content updates
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollIntoView({ behavior: 'smooth' })
         }
-    }, [messages, streamingContent])
 
-    // Clear insufficient tokens banner when user gets more tokens (e.g., after survey)
+        // Calculate dynamic height when typing or streaming starts
+        if ((isTyping || isStreaming) && scrollAreaRef.current && lastUserMessageRef.current) {
+            // Use requestAnimationFrame to ensure DOM is updated and layout is calculated
+            requestAnimationFrame(() => {
+                if (scrollAreaRef.current && lastUserMessageRef.current) {
+                    const scrollArea = scrollAreaRef.current;
+                    // Try to get the actual viewport if it's a Radix ScrollArea
+                    const viewport = scrollArea.querySelector('[data-radix-scroll-area-viewport]');
+                    const containerHeight = (viewport || scrollArea).clientHeight;
+
+                    const messageElement = lastUserMessageRef.current;
+                    const messageHeight = messageElement.offsetHeight;
+
+                    const parent = messageElement.parentElement;
+                    if (parent) {
+                        const style = window.getComputedStyle(parent);
+                        const pb = parseFloat(style.paddingBottom);
+
+                        // Measure gap from message margin-top (standard in space-y)
+                        const messageStyle = window.getComputedStyle(messageElement);
+                        const gap = parseFloat(messageStyle.marginTop) || (window.innerWidth >= 768 ? 24 : 16);
+
+                        // We account for:
+                        // 1. Gap between user message and assistant bubble
+                        // 2. Gap between assistant bubble and the scroll anchor div (which is a separate child)
+                        // 3. Container's padding bottom
+                        // 4. Extra top margin (pseudomargin) to not hit the top edge
+                        const topPadding = 16;
+                        const totalOffset = gap * 2 + pb + topPadding;
+
+                        const calculatedHeight = Math.max(200, containerHeight - messageHeight - totalOffset);
+                        setDynamicMinHeight(`${calculatedHeight}px`);
+                    }
+                }
+            });
+
+            // Force scroll to bottom when expansion starts
+            // Small timeout to allow state update and DOM repaint
+            setTimeout(() => {
+                if (scrollRef.current) {
+                    scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+                }
+            }, 100);
+        } else if (!isTyping && !isStreaming) {
+            setDynamicMinHeight('auto');
+        }
+    }, [messages, isTyping, isStreaming])
+
     useEffect(() => {
         if (insufficientTokens && user && user.available_tokens > 0) {
             setInsufficientTokens(false)
             setError(null)
         }
-    }, [user?.available_tokens, insufficientTokens])
+    }, [user, insufficientTokens])
+
+    // Cleanup: ensure we release the busy state when leaving the page
+    useEffect(() => {
+        return () => {
+            setIsBusy(false)
+        }
+    }, [setIsBusy])
 
     const handleSendMessage = async (content: string, file?: File | null) => {
         // Clear any previous error
@@ -91,13 +149,16 @@ export default function ChatPage() {
 
         // Start loading state
         setIsTyping(true)
+        setIsPlanViewActive(false)
         setStreamingContent("")
+        setStreamingStatus(null)
+        setIsBusy(true)
 
         let accumulatedContent = ""
         let streamCitations: CitationResponse[] = []
-        let streamArtifacts: ArtifactSummary[] = []
-        let streamMetadata: any = {}
-        let streamFailed = false
+        const streamArtifacts: ArtifactSummary[] = []
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let streamMetadata: Record<string, any> = {}
 
         try {
             // Try streaming first
@@ -111,6 +172,12 @@ export default function ChatPage() {
                     ...(conversationId === null && { collector_type: collectorType })
                 },
                 {
+                    onStatus: (status) => {
+                        if (status.phase === 'research_plan_ready') {
+                            setIsPlanViewActive(true)
+                        }
+                        setStreamingStatus(status)
+                    },
                     onChunk: (chunk) => {
                         // Hide loading skeleton once first chunk arrives
                         if (!accumulatedContent) {
@@ -187,10 +254,11 @@ export default function ChatPage() {
                         setStreamingContent("")
                         setStreamingCitations([])
                         setStreamingArtifacts([])
+                        setStreamingStatus(null)
+                        setIsBusy(false)
                     },
                     onError: (message, details) => {
                         console.error('Stream error:', message, details)
-                        streamFailed = true
 
                         // Check for insufficient tokens (402 error)
                         const isTokenError = details?.status === 402
@@ -227,15 +295,16 @@ export default function ChatPage() {
                         setStreamingContent("")
                         setStreamingCitations([])
                         setStreamingArtifacts([])
+                        setStreamingStatus(null)
+                        setIsBusy(false)
                     }
                 }
             )
 
             abortControllerRef.current = abortController
 
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Chat API error:', err)
-            streamFailed = true
 
             // Fallback to non-streaming
             try {
@@ -282,16 +351,18 @@ export default function ChatPage() {
                 }
                 setMessages(prev => [...prev, assistantMessage])
 
-            } catch (fallbackErr: any) {
+            } catch (fallbackErr: unknown) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const error = fallbackErr as any;
                 // Check for 402 error in fallback
-                if (fallbackErr?.status === 402) {
+                if (error?.status === 402) {
                     setInsufficientTokens(true)
                     if (testModeEnabled) {
                         openSurveyModal()
                     }
                 }
 
-                const errorMessage = fallbackErr?.message || 'No se pudo conectar con el servidor. Por favor, intenta de nuevo.'
+                const errorMessage = error?.message || 'No se pudo conectar con el servidor. Por favor, intenta de nuevo.'
                 setError(errorMessage)
 
                 const errorResponse: Message = {
@@ -299,12 +370,15 @@ export default function ChatPage() {
                     content: `Lo siento, hubo un problema: ${errorMessage}`
                 }
                 setMessages(prev => [...prev, errorResponse])
+                setStreamingStatus(null)
             } finally {
                 setIsTyping(false)
                 setIsStreaming(false)
                 setStreamingContent("")
                 setStreamingCitations([])
                 setStreamingArtifacts([])
+                setStreamingStatus(null)
+                setIsBusy(false)
             }
         }
     }
@@ -451,11 +525,12 @@ export default function ChatPage() {
                                     })()}
                                 </div>
                             </div>
+
                         </div>
                     </div>
                 ) : (
                     <>
-                        <ScrollArea className="flex-1">
+                        <ScrollArea className="flex-1" ref={scrollAreaRef}>
                             <div className="space-y-4 md:space-y-6 px-3 md:px-6 py-4 md:py-6">
                                 {/* Insufficient tokens banner */}
                                 {insufficientTokens && (
@@ -493,7 +568,11 @@ export default function ChatPage() {
 
                                 {messages.map((message, idx) => {
                                     return (
-                                        <div key={idx} className="flex flex-col w-full">
+                                        <div
+                                            key={idx}
+                                            className="flex flex-col w-full"
+                                            ref={idx === messages.length - 1 && message.role === 'user' ? lastUserMessageRef : null}
+                                        >
                                             {message.document_name && (
                                                 <DocumentAttachment documentName={message.document_name} />
                                             )}
@@ -512,37 +591,21 @@ export default function ChatPage() {
                                     );
                                 })}
 
-
-                                {isTyping && (
-                                    <div className="flex gap-3 items-start">
-                                        <div className="flex-shrink-0">
-                                            <Logo size="md" animate />
-                                        </div>
-                                        <div className="flex-1 space-y-3 mt-1">
-                                            {/* Text with glowing shimmer effect */}
-                                            <p className="text-sm italic font-medium bg-gradient-to-r from-accent via-accent/60 to-accent bg-clip-text text-transparent animate-shimmer bg-[length:200%_100%]">
-                                                Analizando y buscando fuentes...
-                                            </p>
-                                            {/* Skeleton shimmer lines */}
-                                            <div className="space-y-2">
-                                                <div className="h-4 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded animate-shimmer bg-[length:200%_100%]" style={{ width: '90%' }}></div>
-                                                <div className="h-4 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded animate-shimmer bg-[length:200%_100%]" style={{ width: '75%' }}></div>
-                                                <div className="h-4 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded animate-shimmer bg-[length:200%_100%]" style={{ width: '85%' }}></div>
-                                            </div>
-                                        </div>
+                                {(isTyping || isStreaming) && (
+                                    <div className="flex flex-col w-full">
+                                        <ChatBubble
+                                            role="assistant"
+                                            content={streamingContent}
+                                            citations={streamingCitations}
+                                            isStreaming={isStreaming}
+                                            isTyping={isTyping && !isStreaming}
+                                            artifacts={streamingArtifacts}
+                                            onArtifactClick={openArtifact}
+                                            status={streamingStatus}
+                                            onComplete={() => setIsPlanViewActive(false)}
+                                            minHeight={dynamicMinHeight}
+                                        />
                                     </div>
-                                )}
-
-                                {/* Streaming content display */}
-                                {isStreaming && (
-                                    <ChatBubble
-                                        role="assistant"
-                                        content={streamingContent}
-                                        citations={streamingCitations}
-                                        isStreaming={true}
-                                        artifacts={streamingArtifacts}
-                                        onArtifactClick={openArtifact}
-                                    />
                                 )}
 
                                 {/* Scroll anchor */}

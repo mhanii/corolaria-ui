@@ -10,24 +10,36 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { DirectoryDialog } from "@/components/sidebar/DirectoryDialog";
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogClose,
+} from "@/components/ui/dialog";
+import {
     FileText, FolderOpen, Star, ChevronDown, ChevronRight, ChevronLeft, Plus,
-    MessageSquare, Search, Upload, LayoutDashboard, Scale, Folder, Loader2, X, PanelLeftClose, PanelLeft
+    MessageSquare, Search, Upload, LayoutDashboard, Scale, Folder, Loader2, X, PanelLeftClose, PanelLeft,
+    Trash2
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { uiConfig } from "@/config/uiConfig";
 import { useAuth } from "@/context/AuthContext";
 import { useSidebar } from "@/context/SidebarContext";
-import { getConversations, ConversationSummary } from "@/lib/api";
+import { getConversations, deleteConversation, ConversationSummary } from "@/lib/api";
 
 export function Sidebar() {
     const pathname = usePathname()
     const { isAuthenticated } = useAuth();
-    const { isOpen, isCollapsed, close, toggleCollapse, refreshTrigger } = useSidebar();
+    const { isOpen, isCollapsed, close, toggleCollapse, refreshTrigger, triggerRefresh } = useSidebar();
     const [expandedSections, setExpandedSections] = useState<string[]>(["cases", "recentChats", "recentSearches"]);
     const [expandedDirectories, setExpandedDirectories] = useState<string[]>(["dir1"]);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [conversations, setConversations] = useState<ConversationSummary[]>([]);
     const [isLoadingChats, setIsLoadingChats] = useState(false);
+    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [chatToDelete, setChatToDelete] = useState<{ id: string; name: string } | null>(null);
     const { toast } = useToast();
 
     // Fetch conversations when authenticated
@@ -74,6 +86,45 @@ export function Sidebar() {
             title: "Directorio creado",
             description: `"${name}" ha sido creado exitosamente.`,
         });
+    };
+
+    const handleDeleteClick = (e: React.MouseEvent, chat: ConversationSummary) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setChatToDelete({
+            id: chat.id,
+            name: chat.preview || 'Nueva conversación'
+        });
+        setIsDeleteDialogOpen(true);
+    };
+
+    const confirmDeleteChat = async () => {
+        if (!chatToDelete) return;
+
+        try {
+            await deleteConversation(chatToDelete.id);
+            toast({
+                title: "Conversación eliminada",
+                description: "La conversación ha sido eliminada exitosamente.",
+            });
+
+            // If we are currently on the deleted chat, navigate to new chat
+            if (pathname === `/chat/${chatToDelete.id}`) {
+                window.location.href = '/chat';
+            }
+
+            triggerRefresh();
+        } catch (error) {
+            console.error('Failed to delete conversation:', error);
+            toast({
+                title: "Error",
+                description: "No se pudo eliminar la conversación.",
+                variant: "destructive"
+            });
+        } finally {
+            setIsDeleteDialogOpen(false);
+            setChatToDelete(null);
+        }
     };
 
     const mainNav = [
@@ -333,21 +384,29 @@ export function Sidebar() {
                                             </div>
                                         ) : (
                                             conversations.slice(0, 10).map((conv) => (
-                                                <Link
-                                                    key={conv.id}
-                                                    href={`/chat/${encodeURIComponent(conv.id)}`}
-                                                    className="flex items-start gap-2 w-full text-left p-2 rounded-lg hover:bg-muted transition-smooth group"
-                                                >
-                                                    <MessageSquare className="w-4 h-4 text-muted-foreground group-hover:text-foreground flex-shrink-0 mt-0.5" />
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-base font-medium text-foreground truncate group-hover:text-foreground/80 max-w-[180px]">
-                                                            {conv.preview || 'Nueva conversación'}
-                                                        </p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {conv.message_count} mensajes
-                                                        </p>
-                                                    </div>
-                                                </Link>
+                                                <div key={conv.id} className="relative group overflow-hidden">
+                                                    <Link
+                                                        href={`/chat/${encodeURIComponent(conv.id)}`}
+                                                        className="flex items-start gap-2 w-full text-left p-2 rounded-lg hover:bg-muted transition-smooth"
+                                                    >
+                                                        <MessageSquare className="w-4 h-4 text-muted-foreground group-hover:text-foreground flex-shrink-0 mt-0.5" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-base font-medium text-foreground truncate group-hover:text-foreground/80 max-w-[180px]">
+                                                                {conv.preview || 'Nueva conversación'}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {conv.message_count} mensajes
+                                                            </p>
+                                                        </div>
+                                                    </Link>
+                                                    <button
+                                                        onClick={(e) => handleDeleteClick(e, conv)}
+                                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
+                                                        title="Eliminar chat"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             ))
                                         )}
                                     </div>
@@ -432,6 +491,26 @@ export function Sidebar() {
                     onOpenChange={setDialogOpen}
                     onCreateDirectory={handleCreateDirectory}
                 />
+
+                {/* Delete Confirmation Dialog */}
+                <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>¿Eliminar conversación?</DialogTitle>
+                            <DialogDescription>
+                                Esta acción no se puede deshacer. Se eliminarán todos los mensajes de la conversación &quot;{chatToDelete?.name}&quot;.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="gap-2 sm:gap-0">
+                            <DialogClose asChild>
+                                <Button variant="outline">Cancelar</Button>
+                            </DialogClose>
+                            <Button variant="destructive" onClick={confirmDeleteChat}>
+                                Eliminar
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </aside>
         </>
     );

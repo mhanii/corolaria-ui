@@ -32,6 +32,7 @@ export type {
     ArtifactSummary,
     // Streaming types
     StreamEvent,
+    StreamStatusEvent,
     StreamChunkEvent,
     StreamCitationsEvent,
     StreamDoneEvent,
