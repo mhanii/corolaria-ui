@@ -9,7 +9,7 @@ import { getArticleByNodeId } from "@/lib/api/services/searchService"
 import { ArticleDetailsModal } from "@/components/common/ArticleDetailsModal"
 import { ArtifactChip } from "@/components/chat/ArtifactChip"
 import { FeedbackButtons } from "@/components/beta"
-import { useState, useMemo } from "react"
+import { useState, useMemo, memo } from "react"
 // import { useRouter } from "next/navigation"
 import ReactMarkdown, { Components } from 'react-markdown'
 import { motion, AnimatePresence } from "framer-motion"
@@ -42,65 +42,78 @@ interface ChatBubbleProps {
     isLast?: boolean
 }
 
+// Standard markdown components styling - defined outside to be stable
+const MarkdownComponents: Components = {
+    p: ({ children, ...props }) => <p className="mb-4 last:mb-0 text-lg leading-relaxed" {...props}>{children}</p>,
+    li: ({ children, ...props }) => <li className="text-lg leading-relaxed pl-2" {...props}>{children}</li>,
+    h1: ({ children, ...props }) => <h1 className="text-4xl font-bold mb-4 mt-6" {...props}>{children}</h1>,
+    h2: ({ children, ...props }) => <h2 className="text-3xl font-bold mb-3 mt-5" {...props}>{children}</h2>,
+    h3: ({ children, ...props }) => <h3 className="text-2xl font-semibold mb-3 mt-4" {...props}>{children}</h3>,
+    h4: ({ children, ...props }) => <h4 className="text-xl font-semibold mb-2 mt-3" {...props}>{children}</h4>,
+    td: ({ children, ...props }) => <td className="border border-border px-4 py-2" {...props}>{children}</td>,
+    th: ({ children, ...props }) => <th className="border border-border bg-muted px-4 py-2 text-left font-semibold" {...props}>{children}</th>,
+    blockquote: ({ children, ...props }) => <blockquote className="border-l-4 border-accent/40 pl-4 py-2 my-4 italic bg-muted/30 rounded-r" {...props}>{children}</blockquote>,
+    strong: ({ children, ...props }) => <strong className="font-bold" {...props}>{children}</strong>,
+    em: ({ children, ...props }) => <em className="italic" {...props}>{children}</em>,
+    ul: ({ children, ...props }) => <ul className="list-disc ml-6 mb-4 space-y-2" {...props}>{children}</ul>,
+    ol: ({ children, ...props }) => <ol className="list-decimal ml-6 mb-4 space-y-2" {...props}>{children}</ol>,
+    code: ({ className, children, ...props }) => {
+        const { inline } = props as any
+        return inline
+            ? <code className="bg-muted px-2 py-1 rounded text-sm font-mono" {...props}>{children}</code>
+            : <code className="block bg-muted p-4 rounded-lg my-4 text-sm font-mono overflow-x-auto" {...props}>{children}</code>
+    },
+    pre: ({ children, ...props }) => <pre className="my-4" {...props}>{children}</pre>,
+    hr: ({ ...props }) => <hr className="my-6 border-border" {...props} />,
+    table: ({ children, ...props }) => <div className="overflow-x-auto my-4"><table className="w-full border-collapse" {...props}>{children}</table></div>,
+}
+
 /**
  * Process markdown content:
  * 1. Convert <cite id="N">text</cite> to [text](#citation-N)
  * 2. Render markdown with custom component for 'a' tags
  */
-function processMarkdownWithCitations(
+const AssistantMarkdown = memo(function AssistantMarkdown({
+    content,
+    citations,
+    isStreaming
+}: {
     content: string,
     citations: CitationResponse[],
-    onCitationClick: (articleId: string) => void,
-    isStreaming: boolean = false
-) {
-    // Create map of ID -> Citation
-    const idCitationMap = createIdToCitationMap(citations)
-
-    // Pre-process content: Convert XML tags to Markdown links
-    // <cite id="123">Some Text</cite>  -->  [Some Text](#citation-123)
-    let processedContent = content;
-    if (content) {
-        // Regex to capture id and content
-        // Note: We use a replacement function to handle the groups
-        // Regex to capture id and content, handling optional quotes for the id attribute
-        // matches <cite id="1">, <cite id='1'>, or <cite id=1>
-        processedContent = content.replace(/<cite id=["']?(\d+)["']?>([\s\S]*?)<\/cite>/g, (match, id, text) => {
+    isStreaming: boolean
+}) {
+    // 1. Memoize processsed content (string replacements)
+    const processedContent = useMemo(() => {
+        if (!content) return "";
+        return content.replace(/<cite id=["']?(\d+)["']?>([\s\S]*?)<\/cite>/g, (match, id, text) => {
             return `[${text}](#citation-${id})`
         })
-    }
+    }, [content]);
 
-    const components: Components = {
-        // Intercept links to render citations
-        a: ({ children, href, ...props }) => {
-            // Clean up props to avoid passing invalid attributes to DOM
-            const { node, ...rest } = props as any
+    // 2. Create map of ID -> Citation (memoized)
+    const idCitationMap = useMemo(() => createIdToCitationMap(citations), [citations]);
 
-            // Check if this is a citation link
+    // 3. Stabilize the 'a' component which depends on the citations map
+    const components = useMemo(() => ({
+        ...MarkdownComponents,
+        a: ({ children, href, ...props }: any) => {
+            const { node, ...rest } = props
             if (href && href.startsWith('#citation-')) {
                 const idString = href.replace('#citation-', '')
                 const id = parseInt(idString, 10)
-
                 if (!isNaN(id)) {
                     const citation = idCitationMap.get(id)
                     if (citation) {
                         if (!citation.normativa_id) {
-                            // Fallback if no normative ID for BOE link
-                            return (
-                                <span className="text-accent font-medium" title="Enlace no disponible">
-                                    {children}
-                                </span>
-                            )
+                            return <span className="text-accent font-medium" title="Enlace no disponible">{children}</span>
                         }
-
                         return (
                             <a
                                 href={`https://boe.es/buscar/act.php?id=${citation.normativa_id}#art${citation.article_number}`}
                                 className="text-accent hover:underline font-medium inline-flex items-center gap-0.5"
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                onClick={(e) => {
-                                    e.stopPropagation()
-                                }}
+                                onClick={(e) => e.stopPropagation()}
                                 title={`${citation.display_text}\n${citation.normativa_title}`}
                             >
                                 {children}
@@ -109,51 +122,19 @@ function processMarkdownWithCitations(
                     }
                 }
             }
-
-            // Standard link fallback
             return (
-                <a
-                    href={href}
-                    className="text-accent hover:underline font-medium"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    {...rest}
-                >
+                <a href={href} className="text-accent hover:underline font-medium" target="_blank" rel="noopener noreferrer" {...rest}>
                     {children}
                 </a>
             )
-        },
-
-        // Standard markdown components styling
-        p: ({ children, ...props }) => <p className="mb-4 last:mb-0 text-lg leading-relaxed" {...props}>{children}</p>,
-        li: ({ children, ...props }) => <li className="text-lg leading-relaxed pl-2" {...props}>{children}</li>,
-        h1: ({ children, ...props }) => <h1 className="text-4xl font-bold mb-4 mt-6" {...props}>{children}</h1>,
-        h2: ({ children, ...props }) => <h2 className="text-3xl font-bold mb-3 mt-5" {...props}>{children}</h2>,
-        h3: ({ children, ...props }) => <h3 className="text-2xl font-semibold mb-3 mt-4" {...props}>{children}</h3>,
-        h4: ({ children, ...props }) => <h4 className="text-xl font-semibold mb-2 mt-3" {...props}>{children}</h4>,
-        td: ({ children, ...props }) => <td className="border border-border px-4 py-2" {...props}>{children}</td>,
-        th: ({ children, ...props }) => <th className="border border-border bg-muted px-4 py-2 text-left font-semibold" {...props}>{children}</th>,
-        blockquote: ({ children, ...props }) => <blockquote className="border-l-4 border-accent/40 pl-4 py-2 my-4 italic bg-muted/30 rounded-r" {...props}>{children}</blockquote>,
-        strong: ({ children, ...props }) => <strong className="font-bold" {...props}>{children}</strong>,
-        em: ({ children, ...props }) => <em className="italic" {...props}>{children}</em>,
-        ul: ({ children, ...props }) => <ul className="list-disc ml-6 mb-4 space-y-2" {...props}>{children}</ul>,
-        ol: ({ children, ...props }) => <ol className="list-decimal ml-6 mb-4 space-y-2" {...props}>{children}</ol>,
-        code: ({ className, children, ...props }) => {
-            const { inline } = props as any
-            return inline
-                ? <code className="bg-muted px-2 py-1 rounded text-sm font-mono" {...props}>{children}</code>
-                : <code className="block bg-muted p-4 rounded-lg my-4 text-sm font-mono overflow-x-auto" {...props}>{children}</code>
-        },
-        pre: ({ children, ...props }) => <pre className="my-4" {...props}>{children}</pre>,
-        hr: ({ ...props }) => <hr className="my-6 border-border" {...props} />,
-        table: ({ children, ...props }) => <div className="overflow-x-auto my-4"><table className="w-full border-collapse" {...props}>{children}</table></div>,
-    }
+        }
+    }), [idCitationMap]);
 
     return (
         <>
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
-                components={components}
+                components={components as any}
             >
                 {processedContent}
             </ReactMarkdown>
@@ -162,9 +143,9 @@ function processMarkdownWithCitations(
             )}
         </>
     )
-}
+});
 
-export function ChatBubble({
+export const ChatBubble = memo(function ChatBubble({
     role,
     content,
     citations = [],
@@ -217,19 +198,9 @@ export function ChatBubble({
 
     const hasCitations = citations.length > 0
 
-    // Render content - markdown for assistant, plain text for user
-    // Always process citation markers from text for assistant messages
-    const renderedContent = useMemo(() => {
-        if (role === "assistant") {
-            // Always process citations - the function will handle missing citations gracefully
-            return processMarkdownWithCitations(content, citations, handleCitationClick, isStreaming)
-        }
-        return content
-    }, [content, citations, role, isStreaming])
-
     return (
         <motion.div
-            layout={isTyping}
+            layout={isTyping && !isStreaming} // Only animate layout when typing (skeleton), not when streaming (text growth)
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
@@ -242,32 +213,57 @@ export function ChatBubble({
         >
             <div
                 className={cn(
-                    "rounded-2xl px-3 py-2.5 transition-all duration-300",
+                    "rounded-2xl px-4 py-3",
+                    !isStreaming && "transition-all duration-300",
                     role === "user"
                         ? "bg-accent text-accent-foreground font-medium shadow-soft text-lg"
                         : "text-foreground",
-                    isTyping && "w-full bg-muted/20 border border-dashed border-muted-foreground/20 min-h-[80px] flex items-start justify-start p-4"
+                    isTyping && "w-full bg-accent/[0.03] border border-accent/10 min-h-[100px] flex items-start justify-start p-6 shadow-inner"
                 )}
+                style={{ contain: 'layout' }}
             >
-                {isTyping ? (
+                {isTyping && !isStreaming ? (
                     <div className="flex items-start gap-4 w-full">
                         <div className="mt-1 shrink-0">
                             <Logo animate size="sm" />
                         </div>
-                        <div className="flex flex-col items-start gap-2 flex-1 w-full overflow-hidden">
-                            <span className="text-sm text-muted-foreground animate-pulse font-medium">
-                                Procesando tu consulta...
+                        <div className="flex flex-col items-start gap-3 flex-1 w-full overflow-hidden">
+                            <div className="flex flex-col gap-2 w-full">
+                                <div className="h-4 bg-accent/10 rounded-full w-[40%] animate-pulse" />
+                                <div className="h-4 bg-accent/5 rounded-full w-[80%] animate-pulse delay-75" />
+                                <div className="h-4 bg-accent/5 rounded-full w-[60%] animate-pulse delay-150" />
+                            </div>
+                            <span className="text-xs text-accent/60 font-medium tracking-wide uppercase">
+                                Generando respuesta legal...
                             </span>
                         </div>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-4">
                         <div className={cn(
-                            "break-words [overflow-wrap:anywhere]",
-                            role === "assistant" && "text-foreground",
+                            "break-words [overflow-wrap:anywhere] relative",
+                            role === "assistant" && "text-foreground leading-relaxed",
                             role === "user" && "whitespace-pre-wrap leading-relaxed"
                         )}>
-                            {renderedContent}
+                            {role === "assistant" ? (
+                                <>
+                                    <AssistantMarkdown
+                                        content={content}
+                                        citations={citations}
+                                        isStreaming={isStreaming}
+                                    />
+                                    {isStreaming && (
+                                        <motion.span
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: [0, 1, 0] }}
+                                            transition={{ repeat: Infinity, duration: 0.8 }}
+                                            className="inline-block w-1.5 h-4 bg-accent ml-1 -mb-0.5 rounded-sm"
+                                        />
+                                    )}
+                                </>
+                            ) : (
+                                content
+                            )}
                         </div>
                     </div>
                 )}
@@ -382,4 +378,4 @@ export function ChatBubble({
             />
         </motion.div>
     )
-}
+})

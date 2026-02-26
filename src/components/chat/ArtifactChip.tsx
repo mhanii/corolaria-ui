@@ -1,3 +1,4 @@
+import { memo } from "react"
 import { FileText, Download } from "lucide-react"
 
 interface ArtifactChipProps {
@@ -6,7 +7,7 @@ interface ArtifactChipProps {
     onClick?: () => void
 }
 
-export function ArtifactChip({ id, title, onClick }: ArtifactChipProps) {
+export const ArtifactChip = memo(function ArtifactChip({ id, title, onClick }: ArtifactChipProps) {
     return (
         <div className="mt-3 mb-1 w-full">
             <div
@@ -54,4 +55,4 @@ export function ArtifactChip({ id, title, onClick }: ArtifactChipProps) {
             </div>
         </div>
     )
-}
+})

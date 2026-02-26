@@ -1,16 +1,24 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ChatBubble } from "@/components/chat/ChatBubble"
-import { ChatInput } from "@/components/chat/ChatInput"
+import { ChatInput, ChatInputHandle } from "@/components/chat/ChatInput"
 import { ChatTools } from "@/components/chat/ChatTools"
 import { DocumentAttachment } from "@/components/chat/DocumentAttachment"
 import { ArtifactView } from "@/components/chat/ArtifactView"
 import { ArtifactChip } from "@/components/chat/ArtifactChip"
+import { StreamingArea, StreamingAreaHandle } from "@/components/chat/StreamingArea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
 import { FileText, Search, Scale, AlertCircle, Coins } from "lucide-react"
+
+const suggestions = [
+    { icon: Search, text: "¿Qué dice la ley sobre el despido improcedente?" },
+    { icon: Scale, text: "Explícame los derechos de los inquilinos" },
+    { icon: FileText, text: "¿Cómo redactar un contrato de arras?" },
+    { icon: AlertCircle, text: "Pasos para reclamar una deuda" },
+]
 import { streamChatMessage, sendChatMessage, deleteConversation, getConversation, CitationResponse, ArtifactSummary, StreamStatusEvent } from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
 import { useBeta } from "@/context/BetaContext"
@@ -41,16 +49,9 @@ export default function ChatWithIdPage() {
     const { triggerRefresh, collapse: collapseSidebar } = useSidebar()
 
     const [messages, setMessages] = useState<Message[]>([])
-
-    const [streamingCitations, setStreamingCitations] = useState<CitationResponse[]>([])
-    const [streamingArtifacts, setStreamingArtifacts] = useState<ArtifactSummary[]>([])
-
-    const [streamingStatus, setStreamingStatus] = useState<StreamStatusEvent | null>(null)
     const [isPlanViewActive, setIsPlanViewActive] = useState(false)
     const [isTyping, setIsTyping] = useState(false)
     const [isStreaming, setIsStreaming] = useState(false)
-    const [streamingContent, setStreamingContent] = useState("")
-    const [inputMessage, setInputMessage] = useState("")
     const [conversationId, setConversationId] = useState<string | null>(chatId || null)
     const [error, setError] = useState<string | null>(null)
     const [insufficientTokens, setInsufficientTokens] = useState(false)
@@ -59,6 +60,8 @@ export default function ChatWithIdPage() {
     const scrollAreaRef = useRef<HTMLDivElement>(null)
     const lastUserMessageRef = useRef<HTMLDivElement>(null)
     const abortControllerRef = useRef<AbortController | null>(null)
+    const chatInputRef = useRef<ChatInputHandle>(null)
+    const streamingAreaRef = useRef<StreamingAreaHandle>(null)
     const [dynamicMinHeight, setDynamicMinHeight] = useState<string | number>('auto')
 
     // Artifact state
@@ -85,7 +88,7 @@ export default function ChatWithIdPage() {
 
     useEffect(() => {
         if (scrollRef.current) {
-            scrollRef.current.scrollIntoView({ behavior: 'smooth' })
+            scrollRef.current.scrollIntoView({ behavior: isStreaming ? 'auto' : 'smooth' })
         }
 
         // Calculate dynamic height when typing or streaming starts
@@ -119,7 +122,7 @@ export default function ChatWithIdPage() {
             // Small timeout to allow state update and DOM repaint
             setTimeout(() => {
                 if (scrollRef.current) {
-                    scrollRef.current.scrollIntoView({ behavior: 'smooth' });
+                    scrollRef.current.scrollIntoView({ behavior: isStreaming ? 'auto' : 'smooth' });
                 }
             }, 100);
         }
@@ -172,7 +175,27 @@ export default function ChatWithIdPage() {
         }
     }, [setIsBusy])
 
-    const handleSendMessage = async (content: string, file?: File | null) => {
+    const handleDeleteConversation = useCallback(async () => {
+        try {
+            if (conversationId) {
+                await deleteConversation(conversationId)
+                triggerRefresh() // Refresh sidebar list immediately
+                // Redirect to new chat
+                router.replace('/chat')
+            }
+        } catch (err) {
+            console.error('Failed to delete conversation:', err)
+        }
+    }, [conversationId, router, triggerRefresh])
+
+    const openArtifact = useCallback((id: string, title: string) => {
+        collapseSidebar() // Auto collapse desktop sidebar (or close mobile)
+        setViewArtifactId(id)
+        setViewArtifactTitle(title)
+        setIsArtifactViewOpen(true)
+    }, [collapseSidebar])
+
+    const handleSendMessage = useCallback(async (content: string, file?: File | null) => {
         // Clear any previous error
         setError(null)
 
@@ -187,8 +210,8 @@ export default function ChatWithIdPage() {
         // Start loading state
         setIsTyping(true)
         setIsPlanViewActive(false)
-        setStreamingContent("")
-        setStreamingStatus(null) // Reset status
+        streamingAreaRef.current?.reset()
+        streamingAreaRef.current?.setTyping(true)
         setIsBusy(true)
 
         let accumulatedContent = ""
@@ -290,27 +313,29 @@ export default function ChatWithIdPage() {
                             });
                         }
 
-                        setStreamingStatus(status)
+                        streamingAreaRef.current?.setStatus(status)
                     },
                     onChunk: (chunk) => {
                         // Hide loading skeleton once first chunk arrives
                         if (!accumulatedContent) {
                             setIsTyping(false)
                             setIsStreaming(true)
+                            streamingAreaRef.current?.setTyping(false)
+                            streamingAreaRef.current?.setStreaming(true)
                         }
                         accumulatedContent += chunk
-                        setStreamingContent(accumulatedContent)
+                        streamingAreaRef.current?.setContent(accumulatedContent)
                     },
                     onCitations: (citations) => {
                         streamCitations = citations
-                        setStreamingCitations(citations)
+                        streamingAreaRef.current?.setCitations(citations)
                     },
                     onArtifact: (artifact, autoOpen) => {
                         streamArtifacts.push(artifact)
                         if (autoOpen) {
                             openArtifact(artifact.id, artifact.title)
                         }
-                        setStreamingArtifacts(prev => [...prev, artifact])
+                        streamingAreaRef.current?.setArtifacts(streamArtifacts)
                     },
                     onMetadata: (metadata) => {
                         // Merge metadata
@@ -384,10 +409,7 @@ export default function ChatWithIdPage() {
                             return [...prev, ...newArtifactMsgs, assistantMessage];
                         })
                         setIsStreaming(false)
-                        setStreamingContent("")
-                        setStreamingCitations([])
-                        setStreamingArtifacts([])
-                        setStreamingStatus(null) // Clear status
+                        streamingAreaRef.current?.reset()
                         setIsBusy(false)
                     },
                     onError: (message, details) => {
@@ -415,9 +437,7 @@ export default function ChatWithIdPage() {
 
                         setIsTyping(false)
                         setIsStreaming(false)
-                        setStreamingContent("")
-                        setStreamingCitations([])
-                        setStreamingStatus(null) // Clear status
+                        streamingAreaRef.current?.reset()
                         setIsBusy(false)
                     }
                 }
@@ -488,44 +508,16 @@ export default function ChatWithIdPage() {
                     content: `Lo siento, hubo un problema: ${errorMessage}`
                 }
                 setMessages(prev => [...prev, errorResponse])
-                setStreamingStatus(null)
+                // streamingAreaRef.current?.reset() is handled in finally
             } finally {
                 setIsTyping(false)
                 setIsStreaming(false)
-                setStreamingContent("")
-                setStreamingCitations([])
-                setStreamingArtifacts([])
-                setStreamingStatus(null)
+                streamingAreaRef.current?.reset()
                 setIsBusy(false)
             }
         }
-    }
+    }, [conversationId, mode, user, updateTokenBalance, testModeEnabled, openSurveyModal, setIsBusy, openArtifact])
 
-    const handleDeleteConversation = async () => {
-        try {
-            if (conversationId) {
-                await deleteConversation(conversationId)
-                triggerRefresh() // Refresh sidebar list immediately
-                // Redirect to new chat
-                router.replace('/chat')
-            }
-        } catch (err) {
-            console.error('Failed to delete conversation:', err)
-        }
-    }
-
-    const openArtifact = (id: string, title: string) => {
-        collapseSidebar() // Auto collapse desktop sidebar (or close mobile)
-        setViewArtifactId(id)
-        setViewArtifactTitle(title)
-        setIsArtifactViewOpen(true)
-    }
-
-    const suggestions = [
-        { icon: Search, text: "¿Qué dice la ley sobre el despido improcedente?" },
-        { icon: Scale, text: "Explícame los derechos de los inquilinos" },
-        { icon: FileText, text: "¿Cuál es la diferencia entre denuncia y querella?" },
-    ]
 
     // Show loading while checking auth
     if (isAuthLoading) {
@@ -678,7 +670,10 @@ export default function ChatWithIdPage() {
                                             role={message.role as "user" | "assistant" | "system"}
                                             content={message.content}
                                             citations={message.citations}
-                                            onEdit={setInputMessage}
+                                            onEdit={(text) => {
+                                                chatInputRef.current?.setValue(text)
+                                                chatInputRef.current?.focus()
+                                            }}
                                             artifacts={message.artifacts}
                                             onArtifactClick={openArtifact}
                                             minHeight={heightForLatest}
@@ -690,46 +685,12 @@ export default function ChatWithIdPage() {
                         })}
 
 
-                        {(() => {
-                            // Only show the temporary loading/streaming bubble if:
-                            // 1. We actually have text content to show OR
-                            // 2. We are typing but NO tools are running (to show initial skeleton)
-                            // If a tool is running and we have no text, hiding this prevents the empty "assistant" box.
-                            const isDocumentTool = streamingStatus?.tool === 'create_legal_document' || streamingStatus?.phase?.startsWith('document_creation');
-                            const hasToolRunning = streamingStatus && !isDocumentTool &&
-                                ['tool_start', 'research_plan_ready', 'research_step_done', 'context_collection_start'].includes(streamingStatus.phase);
-                            const shouldShowStreamingBubble = (isTyping || isStreaming) && (streamingContent.length > 0 || !hasToolRunning);
-
-                            return (
-                                <>
-                                    {/* Inline StatusIndicator — rendered outside the ChatBubble */}
-                                    {(isTyping || isStreaming) && streamingStatus && (
-                                        <div className="flex flex-col w-full">
-                                            <StatusIndicator
-                                                status={streamingStatus}
-                                                onComplete={() => setIsPlanViewActive(false)}
-                                            />
-                                        </div>
-                                    )}
-
-                                    {shouldShowStreamingBubble ? (
-                                        <div className="flex flex-col w-full transition-all duration-300">
-                                            <ChatBubble
-                                                role="assistant"
-                                                content={streamingContent}
-                                                citations={streamingCitations}
-                                                isStreaming={isStreaming}
-                                                isTyping={isTyping && !isStreaming}
-                                                artifacts={streamingArtifacts}
-                                                onArtifactClick={openArtifact}
-                                                minHeight={dynamicMinHeight}
-                                                isLast
-                                            />
-                                        </div>
-                                    ) : null}
-                                </>
-                            );
-                        })()}
+                        <StreamingArea
+                            ref={streamingAreaRef}
+                            onArtifactClick={openArtifact}
+                            onStatusComplete={() => setIsPlanViewActive(false)}
+                            dynamicMinHeight={dynamicMinHeight}
+                        />
 
                         {/* Scroll anchor */}
                         <div ref={scrollRef} />
@@ -738,9 +699,8 @@ export default function ChatWithIdPage() {
 
                 <div className="px-3 md:px-6 pb-4 md:pb-6 pt-2 mt-auto shrink-0">
                     <ChatInput
+                        ref={chatInputRef}
                         onSendMessage={handleSendMessage}
-                        message={inputMessage}
-                        setMessage={setInputMessage}
                         mode={mode}
                         onModeChange={setMode}
                         isNewConversation={conversationId === null}
@@ -762,3 +722,5 @@ export default function ChatWithIdPage() {
         </div>
     )
 }
+
+

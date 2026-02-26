@@ -13,7 +13,7 @@ interface StatusIndicatorProps {
     onComplete?: () => void
 }
 
-export function StatusIndicator({ status, className, onComplete }: StatusIndicatorProps) {
+export const StatusIndicator = memo(function StatusIndicator({ status, className, onComplete }: StatusIndicatorProps) {
     const [cachedPlan, setCachedPlan] = useState<string[]>([])
     const [isReplan, setIsReplan] = useState(false)
     const [visualStepIndex, setVisualStepIndex] = useState(-1)
@@ -158,7 +158,7 @@ export function StatusIndicator({ status, className, onComplete }: StatusIndicat
             )}
         </div>
     )
-}
+})
 
 function LoadingArtifactChip() {
     return (
@@ -222,10 +222,8 @@ function ToolChip({ status, isStatic = false }: { status: StreamStatusEvent, isS
                 className="flex items-center gap-2 py-1 w-full"
             >
                 <div className={cn(
-                    "flex items-center gap-3 px-4 py-2 rounded-lg border text-sm transition-all w-full relative overflow-hidden",
-                    isDone
-                        ? "border-accent/10 bg-accent/5 text-foreground opacity-80"
-                        : "border-accent/30 bg-accent/10 text-foreground shadow-sm"
+                    "flex items-center gap-3 px-4 py-2 rounded-lg border text-sm w-full relative overflow-hidden",
+                    isDone ? "transition-all duration-300 border-accent/10 bg-accent/5 text-foreground opacity-80" : "border-accent/30 bg-accent/10 text-foreground shadow-sm"
                 )}>
                     {/* Background scanning effect when running */}
                     {!isDone && (
@@ -268,7 +266,8 @@ function ToolChip({ status, isStatic = false }: { status: StreamStatusEvent, isS
             className="flex items-center gap-2 py-1 w-full"
         >
             <div className={cn(
-                "flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all w-full relative overflow-hidden",
+                "flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm font-medium w-full relative overflow-hidden",
+                isDone ? "transition-all duration-300" : "",
                 isError
                     ? "border-destructive/30 bg-destructive/5 text-destructive"
                     : isDone
@@ -334,7 +333,7 @@ function ToolChip({ status, isStatic = false }: { status: StreamStatusEvent, isS
     )
 }
 
-export function StaticToolIndicator({ label, toolName }: { label: string, toolName: string }) {
+export const StaticToolIndicator = memo(function StaticToolIndicator({ label, toolName }: { label: string, toolName: string }) {
     const isInternet = toolName === 'internet_search' || toolName === 'web_search'
     const isLegal = toolName === 'legal_research' || toolName === 'semantic_search' || toolName === 'run_rag_query' || toolName === 'add_to_context'
     const isError = label.startsWith('Error:')
@@ -375,7 +374,7 @@ export function StaticToolIndicator({ label, toolName }: { label: string, toolNa
             </div>
         </div>
     )
-}
+})
 
 function GenericStatus({ status }: { status: StreamStatusEvent }) {
     const label = status.message || getPhaseLabel(status.phase)
@@ -476,7 +475,7 @@ const ResearchFlow = memo(function ResearchFlow({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="mt-4 overflow-hidden transition-all duration-700 ease-in-out"
+            className="mt-4 overflow-hidden"
         >
             <div className="p-4 md:p-6 rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm">
                 {/* Header */}
@@ -583,7 +582,8 @@ const ResearchFlow = memo(function ResearchFlow({
 
                                     {/* The Label */}
                                     <div className={cn(
-                                        "flex-1 min-w-0 transition-opacity duration-500 my-auto",
+                                        "flex-1 min-w-0 my-auto",
+                                        isCompleted ? "transition-opacity duration-500" : "",
                                         isPending ? "opacity-30" : "opacity-100"
                                     )}>
                                         <div className="flex flex-col gap-1">

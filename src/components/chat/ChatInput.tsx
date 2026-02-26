@@ -1,44 +1,53 @@
-"use client"
-
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect, useState, forwardRef, useImperativeHandle } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { CornerDownLeft, Paperclip, FileText, X } from "lucide-react"
 
+export interface ChatInputHandle {
+    setValue: (value: string) => void
+    focus: () => void
+}
+
 interface ChatInputProps {
     onSendMessage: (message: string, file?: File | null) => void
-    message: string
-    setMessage: (message: string) => void
     mode?: 'workflow' | 'agent'
     onModeChange?: (mode: 'workflow' | 'agent') => void
     isNewConversation?: boolean
 }
 
-export function ChatInput({
+export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function ChatInput({
     onSendMessage,
-    message,
-    setMessage,
     mode = 'agent',
     onModeChange,
     isNewConversation = false
-}: ChatInputProps) {
+}: ChatInputProps, ref) {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const [localMessage, setLocalMessage] = useState("")
     const [selectedFile, setSelectedFile] = useState<File | null>(null)
     const [isQualityExpanded, setIsQualityExpanded] = useState(false)
+
+    useImperativeHandle(ref, () => ({
+        setValue: (value: string) => {
+            setLocalMessage(value)
+        },
+        focus: () => {
+            textareaRef.current?.focus()
+        }
+    }))
 
     useEffect(() => {
         if (textareaRef.current) {
             textareaRef.current.style.height = "auto"
             textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
         }
-    }, [message])
+    }, [localMessage])
 
     const handleSend = () => {
-        if (message.trim() || selectedFile) {
-            onSendMessage(message.trim(), selectedFile)
-            setMessage("")
+        if (localMessage.trim() || selectedFile) {
+            onSendMessage(localMessage.trim(), selectedFile)
+            setLocalMessage("")
             setSelectedFile(null)
             // Reset height
             if (textareaRef.current) {
@@ -89,8 +98,8 @@ export function ChatInput({
             )}
             <Textarea
                 ref={textareaRef}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                value={localMessage}
+                onChange={(e) => setLocalMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Escribe tu consulta legal aquí..."
                 className="min-h-[50px] md:min-h-[60px] max-h-[150px] md:max-h-[200px] w-[calc(100%-1rem)] md:w-[calc(100%-1.5rem)] mx-2 md:mx-3 mt-2 md:mt-3 resize-none border-0 shadow-none focus-visible:ring-0 bg-muted/50 rounded-xl p-3 md:p-4 text-sm md:text-base text-foreground placeholder:text-muted-foreground overflow-y-auto font-mono"
@@ -176,7 +185,7 @@ export function ChatInput({
 
                 <Button
                     onClick={handleSend}
-                    disabled={!message.trim() && !selectedFile}
+                    disabled={!localMessage.trim() && !selectedFile}
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 text-sm font-medium transition-all hover:bg-accent/10 hover:text-accent"
@@ -188,4 +197,4 @@ export function ChatInput({
             </div>
         </div>
     )
-}
+})

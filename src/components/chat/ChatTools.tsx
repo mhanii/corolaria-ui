@@ -1,3 +1,4 @@
+import { memo } from "react"
 import { Button } from "@/components/ui/button"
 import { Download, Save, History, MoreHorizontal, Trash2, FileText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -23,7 +24,7 @@ interface ChatToolsProps {
     onDelete?: () => void
 }
 
-export function ChatTools({ messages, onDelete }: ChatToolsProps) {
+export const ChatTools = memo(function ChatTools({ messages, onDelete }: ChatToolsProps) {
 
     const { toast } = useToast()
 
@@ -191,4 +192,4 @@ export function ChatTools({ messages, onDelete }: ChatToolsProps) {
         </div>
 
     )
-}
+})
