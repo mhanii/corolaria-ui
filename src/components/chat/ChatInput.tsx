@@ -10,8 +10,8 @@ interface ChatInputProps {
     onSendMessage: (message: string, file?: File | null) => void
     message: string
     setMessage: (message: string) => void
-    collectorType?: 'rag' | 'qrag' | 'agent' | 'matrix' | 'research'
-    onCollectorTypeChange?: (type: 'rag' | 'qrag' | 'agent' | 'matrix' | 'research') => void
+    mode?: 'workflow' | 'agent'
+    onModeChange?: (mode: 'workflow' | 'agent') => void
     isNewConversation?: boolean
 }
 
@@ -19,8 +19,8 @@ export function ChatInput({
     onSendMessage,
     message,
     setMessage,
-    collectorType = 'matrix',
-    onCollectorTypeChange,
+    mode = 'agent',
+    onModeChange,
     isNewConversation = false
 }: ChatInputProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -60,20 +60,14 @@ export function ChatInput({
         }
     }
 
-    const getCollectorLabel = (type: 'rag' | 'qrag' | 'agent' | 'matrix' | 'research') => {
-        switch (type) {
-            case 'rag':
-                return 'Basic'
-            case 'qrag':
-                return 'Query RAG'
-            case 'matrix':
-                return 'Balanced'
+    const getModeLabel = (m: 'workflow' | 'agent') => {
+        switch (m) {
             case 'agent':
-                return 'Quick Research'
-            case 'research':
-                return 'Deep Research'
+                return 'Agente'
+            case 'workflow':
+                return 'Investigación Profunda'
             default:
-                return 'Balanced'
+                return 'Agente'
         }
     }
 
@@ -106,7 +100,7 @@ export function ChatInput({
 
             <div className="flex items-center justify-between p-2 pl-2 md:pl-3">
                 <div className="flex items-center gap-2">
-                    {/* File attachment button - disabled with tooltip */}
+                    {/* File attachment button */}
                     <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger asChild>
@@ -132,11 +126,11 @@ export function ChatInput({
                         className="hidden"
                     />
 
-                    {/* Quality Selector - Expandable */}
-                    {isNewConversation && onCollectorTypeChange && (
+                    {/* Mode Selector — only shown for new conversations */}
+                    {isNewConversation && onModeChange && (
                         <div
                             data-tour-id="quality-selector"
-                            className={`flex items-center overflow-hidden bg-muted/30 border border-border/50 rounded-lg transition-all duration-500 ease-in-out ${isQualityExpanded ? "max-w-[450px]" : "max-w-[140px]"}`}
+                            className={`flex items-center overflow-hidden bg-muted/30 border border-border/50 rounded-lg transition-all duration-500 ease-in-out ${isQualityExpanded ? "max-w-[360px]" : "max-w-[180px]"}`}
                         >
                             <div className="p-1 w-full h-full flex items-center">
                                 {!isQualityExpanded ? (
@@ -146,41 +140,31 @@ export function ChatInput({
                                         onClick={() => setIsQualityExpanded(true)}
                                         className="h-7 text-xs font-medium text-muted-foreground hover:text-accent hover:bg-muted/50 transition-colors px-2 w-full justify-start md:justify-center whitespace-nowrap"
                                     >
-                                        Modo: {getCollectorLabel(collectorType)}
+                                        Modo: {getModeLabel(mode)}
                                     </Button>
                                 ) : (
                                     <div className="flex items-center gap-1 animate-in fade-in zoom-in-95 duration-300">
                                         <span className="text-xs font-medium text-muted-foreground ml-2 mr-1 whitespace-nowrap">Modo:</span>
 
-                                        {/* Balanced (Matrix) - Default */}
+                                        {/* Agent — quick, reactive */}
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => { onCollectorTypeChange('matrix'); setIsQualityExpanded(false); }}
-                                            className={`h-7 px-2 text-xs transition-colors ${collectorType === 'matrix' ? 'bg-accent/20 text-accent hover:bg-accent/40 hover:text-accent' : 'hover:bg-muted hover:text-accent text-muted-foreground'}`}
+                                            onClick={() => { onModeChange('agent'); setIsQualityExpanded(false); }}
+                                            className={`h-7 px-2 text-xs transition-colors ${mode === 'agent' ? 'bg-accent/20 text-accent hover:bg-accent/40 hover:text-accent' : 'hover:bg-muted hover:text-accent text-muted-foreground'}`}
                                         >
-                                            Balanced
+                                            Agente
                                         </Button>
 
-                                        {/* Quick Research (Agent) */}
+                                        {/* Workflow — deep research, gradient style */}
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => { onCollectorTypeChange('agent'); setIsQualityExpanded(false); }}
-                                            className={`h-7 px-2 text-xs transition-colors ${collectorType === 'agent' ? 'bg-accent/20 text-accent hover:bg-accent/40 hover:text-accent' : 'hover:bg-muted hover:text-accent text-muted-foreground'}`}
-                                        >
-                                            Quick Research
-                                        </Button>
-
-                                        {/* Deep Research (Research) - Max style */}
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => { onCollectorTypeChange('research'); setIsQualityExpanded(false); }}
-                                            className={`h-7 px-2 text-xs font-bold transition-colors ${collectorType === 'research' ? 'bg-accent/20 hover:bg-accent/40' : 'hover:bg-muted hover:text-accent'}`}
+                                            onClick={() => { onModeChange('workflow'); setIsQualityExpanded(false); }}
+                                            className={`h-7 px-2 text-xs font-bold transition-colors ${mode === 'workflow' ? 'bg-accent/20 hover:bg-accent/40' : 'hover:bg-muted hover:text-accent'}`}
                                         >
                                             <span className="inline-block bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 bg-clip-text !text-transparent">
-                                                Deep Research
+                                                Investigación Profunda
                                             </span>
                                         </Button>
                                     </div>

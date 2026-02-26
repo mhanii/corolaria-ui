@@ -230,7 +230,7 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                 // Better DOCX generation
                 const sections = []
                 const lines = content.split('\n')
-                let currentList: any[] = []
+                const currentList: any[] = []
 
                 // transform markdown lines to docx paragraphs
                 const kids: any[] = []

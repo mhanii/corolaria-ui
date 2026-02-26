@@ -1,0 +1,10 @@
+
+> athen-ui@0.1.0 lint
+> eslint
+
+
+/home/hani/corolaria-ui/src/app/chat/page.tsx
+  582:54  error  'StaticToolIndicator' is not defined  react/jsx-no-undef
+
+✖ 1 problem (1 error, 0 warnings)
+

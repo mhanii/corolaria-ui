@@ -236,8 +236,8 @@ export interface ChatRequest {
     /** Number of sources to retrieve (1-20) */
     top_k?: number;
 
-    /** Context retrieval strategy: 'rag', 'qrag', 'agent', 'matrix', 'research' */
-    collector_type?: 'rag' | 'qrag' | 'agent' | 'matrix' | 'research';
+    /** Execution mode: 'workflow' (deep research) or 'agent' (reactive agent) */
+    mode?: 'workflow' | 'agent';
 }
 
 /**
@@ -297,11 +297,18 @@ export interface ChatResponse {
  * Schema for a message in conversation history
  */
 export interface ConversationMessageResponse {
-    /** Message role: 'user' or 'assistant' */
-    role: 'user' | 'assistant';
+    /** The author of the message */
+    role: "user" | "assistant" | "system" | "tool";
 
-    /** Message content */
+    /** The message content */
     content: string;
+
+    /** Tool summary for tool execution messages */
+    tool_summary?: {
+        tool_name: string;
+        label: string;
+        artifact?: { type: string; id: string; title: string };
+    };
 
     /** Citations for assistant messages */
     citations: CitationResponse[];
@@ -548,7 +555,32 @@ export interface StreamStatusEvent {
     evidence_count?: number;
     /** Document name if relevant */
     document_name?: string;
+    /** Tool name for tool_start / tool_end / tool_error phases */
+    tool?: string;
+    /** Error code for tool_error phase */
+    error_code?: string;
+    /** Whether retry is suggested for tool_error phase */
+    retry_suggested?: boolean;
     /** Any other phase-specific data */
+    [key: string]: any;
+}
+
+/**
+ * Streaming tool event - tool execution updates
+ */
+export interface StreamToolEvent {
+    type: 'tool_start' | 'tool_end' | 'tool_error';
+    /** Human-readable message */
+    message?: string;
+    /** Tool name */
+    tool?: string;
+    /** Error code for tool_error */
+    error_code?: string;
+    /** Count of evidence found */
+    results_count?: number;
+    /** Count of evidence found (legacy) */
+    evidence_count?: number;
+    /** Any other specific data */
     [key: string]: any;
 }
 
@@ -562,7 +594,8 @@ export type StreamEvent =
     | StreamArtifactEvent
     | StreamDoneEvent
     | StreamErrorEvent
-    | StreamStatusEvent;
+    | StreamStatusEvent
+    | StreamToolEvent;
 
 /**
  * Callbacks for streaming chat message

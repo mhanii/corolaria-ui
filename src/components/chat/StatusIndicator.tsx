@@ -1,8 +1,9 @@
+
 "use client"
 
-import { useState, useEffect, useRef, useMemo, memo } from "react"
+import { useState, useEffect, useMemo, memo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { Loader2, Sparkles } from "lucide-react"
+import { Loader2, Sparkles, Wrench, AlertTriangle, CheckCircle2, Globe, Scale } from "lucide-react"
 import { StreamStatusEvent } from "@/lib/api/types"
 import { cn } from "@/lib/utils"
 
@@ -29,12 +30,19 @@ export function StatusIndicator({ status, className, onComplete }: StatusIndicat
         'research_reflection',
         'research_agent_start'
     ].includes(phase)
+    void isResearchPhase; // Explicitly mark as used if not strictly needed
 
     const isGenerationPhase = [
         'generate_start',
         'generate_end',
         'document_creation_started',
         'document_creation_completed'
+    ].includes(phase)
+
+    const isToolPhase = [
+        'tool_start',
+        'tool_end',
+        'tool_error'
     ].includes(phase)
 
     // 1. Capture the plan and reset the finish latch
@@ -94,14 +102,22 @@ export function StatusIndicator({ status, className, onComplete }: StatusIndicat
     // Determine what to show: Plan takes priority until latch is released
     const showPlan = cachedPlan.length > 0 && !planFinished
 
-    // Loading chip for documents (only if plan isn't still catching up)
-    if (phase === 'document_creation_started' && !showPlan) {
-        return (
-            <div className="w-full py-1">
-                <LoadingArtifactChip />
-            </div>
-        )
+    // Document creation chips are handled by ChatBubble outside the typing container
+    if (phase === 'document_creation_started' || phase === 'document_creation_completed') {
+        if (!showPlan) {
+            return (
+                <div className="w-full py-1">
+                    <LoadingArtifactChip />
+                </div>
+            )
+        }
+        // If plan is still showing, don't render anything for document phases
+        return null
     }
+
+    // Suppress end/completed phases entirely (no "Documento generado con éxito" etc.)
+    const isEndPhase = phase.endsWith('_end') || phase.includes('completed')
+    if (isEndPhase && !showPlan) return null
 
     // Stabilize the status passed to children
     // If we are forcing the plan display during generation, we "mock" a research phase
@@ -111,19 +127,35 @@ export function StatusIndicator({ status, className, onComplete }: StatusIndicat
 
     return (
         <div className={cn("w-full py-1", className)}>
+            {/* Research plan */}
+            {showPlan && (
+                <ResearchFlow
+                    key="research-flow"
+                    status={effectiveStatus}
+                    plan={cachedPlan}
+                    isReplan={isReplan}
+                    visualStepIndex={visualStepIndex}
+                />
+            )}
+
+            {/* Active Tool Chip */}
             <AnimatePresence mode="wait" initial={false}>
-                {showPlan ? (
-                    <ResearchFlow
-                        key="research-flow"
-                        status={effectiveStatus}
-                        plan={cachedPlan}
-                        isReplan={isReplan}
-                        visualStepIndex={visualStepIndex}
-                    />
-                ) : (
-                    <GenericStatus key="generic-status" status={effectiveStatus} />
+                {isToolPhase && phase === 'tool_start' && (
+                    <ToolChip key={`tool-active-${status.tool}`} status={status} />
                 )}
             </AnimatePresence>
+
+            {/* Active Research Step */}
+            <AnimatePresence mode="wait" initial={false}>
+                {phase === 'research_step_done' && status.status === 'running' && !showPlan && (
+                    <ToolChip key={`research-active`} status={{ ...status, tool: 'research_step_done' }} />
+                )}
+            </AnimatePresence>
+
+            {/* Generic status only when no plan and no tool */}
+            {!showPlan && !isToolPhase && (
+                <GenericStatus key="generic-status" status={effectiveStatus} />
+            )}
         </div>
     )
 }
@@ -165,9 +197,188 @@ function LoadingArtifactChip() {
     )
 }
 
+/**
+ * Formats an internal tool name to a human-readable label.
+ * e.g. "internet_search" → "Internet Search"
+ */
+function formatToolName(tool: string): string {
+    return tool
+        .split('_')
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')
+}
+
+function ToolChip({ status, isStatic = false }: { status: StreamStatusEvent, isStatic?: boolean }) {
+    // If it's a research step pretending to be a tool
+    if (status.tool === 'research_step_done' || status.phase === 'research_step_done') {
+        const isDone = status.status === 'completed' || isStatic;
+        const count = status.results_count ?? status.evidence_count ?? 0;
+
+        return (
+            <motion.div
+                initial={isStatic ? false : { opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={isStatic ? undefined : { opacity: 0, y: -4 }}
+                className="flex items-center gap-2 py-1 w-full"
+            >
+                <div className={cn(
+                    "flex items-center gap-3 px-4 py-2 rounded-lg border text-sm transition-all w-full relative overflow-hidden",
+                    isDone
+                        ? "border-accent/10 bg-accent/5 text-foreground opacity-80"
+                        : "border-accent/30 bg-accent/10 text-foreground shadow-sm"
+                )}>
+                    {/* Background scanning effect when running */}
+                    {!isDone && (
+                        <div className="absolute top-0 bottom-0 left-[-100%] w-[200%] bg-gradient-to-r from-transparent via-accent/10 to-transparent animate-[shimmer_2s_infinite]" />
+                    )}
+
+                    <div className={cn(
+                        "p-1.5 rounded-md flex items-center justify-center relative z-10 shrink-0",
+                        isDone ? "bg-accent/10 text-accent" : "bg-card border border-accent/30 text-accent shadow-inner"
+                    )}>
+                        {isDone ? (
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                        ) : (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        )}
+                    </div>
+
+                    <div className="flex flex-col flex-1 min-w-0 relative z-10 justify-center">
+                        <span className={cn("truncate leading-tight", isDone ? "font-medium text-sm" : "font-semibold")}>
+                            {status.message || (isDone ? "Paso completado" : "Procesando paso...")}
+                        </span>
+                    </div>
+                </div>
+            </motion.div>
+        );
+    }
+
+    const toolLabel = status.tool ? formatToolName(status.tool) : 'Herramienta'
+    const isError = status.phase === 'tool_error'
+    const isDone = status.phase === 'tool_end' || isStatic
+    const isInternet = status.tool === 'internet_search' || status.tool === 'web_search'
+    const isLegal = status.tool === 'legal_research' || status.tool === 'semantic_search'
+    const count = status.results_count ?? status.evidence_count ?? 0
+
+    return (
+        <motion.div
+            initial={isStatic ? false : { opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={isStatic ? undefined : { opacity: 0, y: -4 }}
+            className="flex items-center gap-2 py-1 w-full"
+        >
+            <div className={cn(
+                "flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all w-full relative overflow-hidden",
+                isError
+                    ? "border-destructive/30 bg-destructive/5 text-destructive"
+                    : isDone
+                        ? "border-accent/30 bg-accent/5 text-accent"
+                        : "border-accent/20 bg-accent/5 text-foreground shadow-[0_0_15px_rgba(59,130,246,0.1)]"
+            )}>
+                {/* Background scanning effect when running */}
+                {!isError && !isDone && (
+                    <div className="absolute top-0 bottom-0 left-[-100%] w-[200%] bg-gradient-to-r from-transparent via-accent/10 to-transparent animate-[shimmer_2s_infinite]" />
+                )}
+
+                <div className={cn(
+                    "p-1.5 rounded-lg flex items-center justify-center relative z-10 shrink-0 transition-colors duration-500",
+                    isError ? "bg-destructive/10 text-destructive" : isDone ? "bg-accent/10 text-accent" : "bg-card border border-accent/20 text-accent shadow-inner shadow-accent/10"
+                )}>
+                    {isError ? (
+                        <AlertTriangle className="w-4 h-4" />
+                    ) : isDone ? (
+                        <CheckCircle2 className="w-4 h-4" />
+                    ) : isInternet ? (
+                        <div className="relative">
+                            <Globe className="w-4 h-4 animate-pulse relative z-10" />
+                            <div className="absolute inset-0 border border-accent rounded-full animate-ping opacity-30" />
+                        </div>
+                    ) : isLegal ? (
+                        <div className="relative">
+                            <Scale className="w-4 h-4 animate-bounce relative z-10" style={{ animationDuration: '2s' }} />
+                        </div>
+                    ) : (
+                        <Wrench className="w-4 h-4 animate-[spin_3s_linear_infinite]" />
+                    )}
+                </div>
+
+                <div className="flex flex-col flex-1 min-w-0 relative z-10 justify-center">
+                    <span className="truncate leading-tight font-semibold">
+                        {isError
+                            ? (status.message || `Error en ${toolLabel}${status.error_code ? ` (${status.error_code})` : ''}`)
+                            : isDone
+                                ? (status.message || `${toolLabel} completado`)
+                                : (status.message || `Usando ${toolLabel}...`)}
+                    </span>
+                    {(!isError && !isDone && count > 0) && (
+                        <motion.span
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="text-[10.5px] text-muted-foreground mt-0.5 leading-none font-medium flex items-center gap-1"
+                        >
+                            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                            {count} {count === 1 ? 'hallazgo' : 'hallazgos'} recuperados
+                        </motion.span>
+                    )}
+                </div>
+
+                {!isError && !isDone && (
+                    <div className="relative w-5 h-5 shrink-0 z-10 ml-auto flex items-center justify-center">
+                        <div className="absolute inset-0 rounded-full border-2 border-accent/20 border-b-accent animate-spin" style={{ animationDuration: '1.5s' }} />
+                        <div className="absolute inset-1 rounded-full border border-accent/40 border-t-accent animate-spin" style={{ animationDirection: 'reverse', animationDuration: '2s' }} />
+                        <Sparkles className="w-2.5 h-2.5 text-accent animate-pulse" />
+                    </div>
+                )}
+            </div>
+        </motion.div>
+    )
+}
+
+export function StaticToolIndicator({ label, toolName }: { label: string, toolName: string }) {
+    const isInternet = toolName === 'internet_search' || toolName === 'web_search'
+    const isLegal = toolName === 'legal_research' || toolName === 'semantic_search' || toolName === 'run_rag_query' || toolName === 'add_to_context'
+    const isError = label.startsWith('Error:')
+    const toolLabel = formatToolName(toolName);
+
+    return (
+        <div className="flex items-center w-full mx-2">
+            <div className={cn(
+                "flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all w-full relative overflow-hidden",
+                isError
+                    ? "border-destructive/20 bg-destructive/5 text-destructive shadow-[0_0_15px_rgba(239,68,68,0.05)]"
+                    : "border-accent/20 bg-accent/5 text-accent shadow-[0_0_15px_rgba(59,130,246,0.05)]"
+            )}>
+                <div className={cn(
+                    "p-1.5 rounded-lg flex items-center justify-center relative z-10 shrink-0 shadow-inner transition-colors duration-500",
+                    isError
+                        ? "bg-destructive/10 border border-destructive/20 text-destructive"
+                        : "bg-card border border-accent/20 text-accent"
+                )}>
+                    {isError ? (
+                        <AlertTriangle className="w-4 h-4 relative z-10" />
+                    ) : isInternet ? (
+                        <Globe className="w-4 h-4 relative z-10" />
+                    ) : isLegal ? (
+                        <Scale className="w-4 h-4 relative z-10" />
+                    ) : (
+                        <CheckCircle2 className="w-4 h-4 relative z-10" />
+                    )}
+                </div>
+                <div className="flex flex-col flex-1 min-w-0 relative z-10 justify-center">
+                    <span className="truncate leading-tight font-semibold text-[13px] opacity-70">
+                        {toolLabel}
+                    </span>
+                    <span className="truncate leading-none font-medium mt-0.5">
+                        {label}
+                    </span>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 function GenericStatus({ status }: { status: StreamStatusEvent }) {
-    const label = getPhaseLabel(status.phase)
-    const isDone = status.phase.endsWith('_end') || status.phase.includes('completed')
+    const label = status.message || getPhaseLabel(status.phase)
 
     return (
         <motion.div
@@ -178,7 +389,7 @@ function GenericStatus({ status }: { status: StreamStatusEvent }) {
         >
             <p className={cn(
                 "text-sm italic font-medium",
-                !isDone && "bg-gradient-to-r from-accent via-accent/60 to-accent bg-clip-text text-transparent animate-shimmer bg-[length:200%_100%]"
+                "bg-gradient-to-r from-accent via-accent/60 to-accent bg-clip-text text-transparent animate-shimmer bg-[length:200%_100%]"
             )}>
                 {label}
             </p>
@@ -429,7 +640,11 @@ function getPhaseLabel(phase: string): string {
         case 'document_creation_completed': return 'Documento generado con éxito.';
         case 'document_creation_failed': return 'Error al generar documento.';
         case 'research_reflection': return 'Evaluando hallazgos...';
+        case 'research_step_done': return 'Paso de investigación completado.';
         case 'research_plan_ready': return 'Plan de investigación listo.';
+        case 'tool_start': return 'Usando herramienta...';
+        case 'tool_end': return 'Herramienta completada.';
+        case 'tool_error': return 'Error en herramienta.';
         default: return 'Procesando...';
     }
 }

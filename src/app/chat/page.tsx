@@ -7,6 +7,7 @@ import { ChatInput } from "@/components/chat/ChatInput"
 import { ChatTools } from "@/components/chat/ChatTools"
 import { DocumentAttachment } from "@/components/chat/DocumentAttachment"
 import { ArtifactView } from "@/components/chat/ArtifactView"
+import { ArtifactChip } from "@/components/chat/ArtifactChip"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -17,14 +18,19 @@ import { useBeta } from "@/context/BetaContext"
 import { useSidebar } from "@/context/SidebarContext"
 import { Logo, LogoLoader } from "@/components/ui/Logo"
 import { cn } from "@/lib/utils"
-import { StatusIndicator } from "@/components/chat/StatusIndicator"
+import { StatusIndicator, StaticToolIndicator } from "@/components/chat/StatusIndicator"
 
 interface Message {
-    role: "user" | "assistant"
+    role: "user" | "assistant" | "system" | "tool"
     content: string
     citations?: CitationResponse[]
     document_name?: string | null
     artifacts?: ArtifactSummary[] | null
+    tool_summary?: {
+        tool_name: string;
+        label: string;
+        artifact?: { type: string; id: string; title: string };
+    };
 }
 
 export default function ChatPage() {
@@ -47,7 +53,7 @@ export default function ChatPage() {
     const [conversationId, setConversationId] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [insufficientTokens, setInsufficientTokens] = useState(false)
-    const [collectorType, setCollectorType] = useState<'rag' | 'qrag' | 'agent' | 'matrix' | 'research'>('matrix')
+    const [mode, setMode] = useState<'workflow' | 'agent'>('agent')
     const scrollRef = useRef<HTMLDivElement>(null)
     const scrollAreaRef = useRef<HTMLDivElement>(null)
     const lastUserMessageRef = useRef<HTMLDivElement>(null)
@@ -116,8 +122,6 @@ export default function ChatPage() {
                     scrollRef.current.scrollIntoView({ behavior: 'smooth' });
                 }
             }, 100);
-        } else if (!isTyping && !isStreaming) {
-            setDynamicMinHeight('auto');
         }
     }, [messages, isTyping, isStreaming])
 
@@ -157,7 +161,9 @@ export default function ChatPage() {
         let accumulatedContent = ""
         let streamCitations: CitationResponse[] = []
         const streamArtifacts: ArtifactSummary[] = []
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let researchItemCount = 0
+        let hadPlanView = false
+
         let streamMetadata: Record<string, any> = {}
 
         try {
@@ -168,14 +174,96 @@ export default function ChatPage() {
                     conversation_id: conversationId,
                     file: file,
                     top_k: 5,
-                    // Only include collector_type for new conversations
-                    ...(conversationId === null && { collector_type: collectorType })
+                    // Only include mode for new conversations
+                    ...(conversationId === null && { mode })
                 },
                 {
                     onStatus: (status) => {
                         if (status.phase === 'research_plan_ready') {
                             setIsPlanViewActive(true)
+                            hadPlanView = true
                         }
+
+                        // Track accumulated research results
+                        if (status.phase === 'research_step_done' && status.status === 'completed') {
+                            const stepCount = status.results_count ?? status.evidence_count ?? 0;
+                            researchItemCount += stepCount;
+
+                            // If plan is NOT active, consolidate into a single updating tool message
+                            if (!hadPlanView) {
+                                setMessages(prev => {
+                                    const existingIdx = prev.findIndex(m =>
+                                        m.role === 'tool' && m.tool_summary?.tool_name === 'research_step_done'
+                                    );
+                                    const label = `Buscó ${researchItemCount} artículos`;
+                                    if (existingIdx >= 0) {
+                                        // Update in-place
+                                        const updated = [...prev];
+                                        updated[existingIdx] = {
+                                            ...updated[existingIdx],
+                                            tool_summary: { tool_name: 'research_step_done', label }
+                                        };
+                                        return updated;
+                                    }
+                                    // First time — create it
+                                    return [...prev, {
+                                        role: 'tool',
+                                        content: '',
+                                        tool_summary: { tool_name: 'research_step_done', label }
+                                    }];
+                                });
+                            }
+                            // If plan IS active, suppress — we'll persist a summary when plan ends
+                        }
+
+                        // When generation starts after a plan, persist the consolidated research indicator
+                        if (status.phase === 'generate_start' && hadPlanView && researchItemCount > 0) {
+                            setMessages(prev => {
+                                // Avoid duplicate
+                                const exists = prev.some(m =>
+                                    m.role === 'tool' && m.tool_summary?.tool_name === 'research_consolidated'
+                                );
+                                if (exists) return prev;
+                                return [...prev, {
+                                    role: 'tool',
+                                    content: '',
+                                    tool_summary: {
+                                        tool_name: 'research_consolidated',
+                                        label: `Investigación completada · ${researchItemCount} hallazgos`
+                                    }
+                                }];
+                            });
+                        }
+
+                        // Persist completed tools (non-research, non-document)
+                        const isCompletedTool = status.phase === 'tool_end';
+                        const isErrorAction = status.phase === 'tool_error';
+
+                        if ((isCompletedTool || isErrorAction) && status.tool !== 'create_legal_document') {
+                            setMessages(prev => {
+                                const lastMessages = prev.slice(-5);
+                                const isDuplicate = lastMessages.some(m =>
+                                    m.role === 'tool' &&
+                                    m.tool_summary?.tool_name === status.tool &&
+                                    m.tool_summary?.label === (status.message || 'Paso completado')
+                                );
+
+                                if (isDuplicate) return prev;
+
+                                const toolMessage: Message = {
+                                    role: 'tool',
+                                    content: '',
+                                    tool_summary: {
+                                        tool_name: status.tool || 'unknown',
+                                        label: isErrorAction
+                                            ? `Error: ${status.message || 'No se pudo completar'}`
+                                            : (status.message || 'Paso completado')
+                                    }
+                                };
+                                return [...prev, toolMessage];
+                            });
+                        }
+
                         setStreamingStatus(status)
                     },
                     onChunk: (chunk) => {
@@ -242,14 +330,37 @@ export default function ChatPage() {
                             updateTokenBalance(user.available_tokens - 1)
                         }
 
-                        // Add completed assistant message
+                        // Build artifact tool messages for any documents produced
+                        const artifactToolMessages: Message[] = streamArtifacts
+                            .filter(a => !streamMetadata.created_documents || true) // include all
+                            .map(a => ({
+                                role: 'tool' as const,
+                                content: '',
+                                tool_summary: {
+                                    tool_name: 'create_legal_document',
+                                    label: 'Documento creado',
+                                    artifact: { type: 'document', id: a.id, title: a.title }
+                                }
+                            }));
+
                         const assistantMessage: Message = {
                             role: "assistant",
                             content: accumulatedContent,
                             citations: streamCitations,
-                            artifacts: streamMetadata.created_documents || streamArtifacts
                         }
-                        setMessages(prev => [...prev, assistantMessage])
+
+                        // Inject artifact tool messages + assistant message atomically,
+                        // deduplicating any artifact IDs that may already exist
+                        setMessages(prev => {
+                            const existingArtifactIds = new Set(
+                                prev.filter(m => m.role === 'tool' && m.tool_summary?.artifact?.id)
+                                    .map(m => m.tool_summary!.artifact!.id)
+                            );
+                            const newArtifactMsgs = artifactToolMessages.filter(
+                                m => !existingArtifactIds.has(m.tool_summary!.artifact!.id)
+                            );
+                            return [...prev, ...newArtifactMsgs, assistantMessage];
+                        })
                         setIsStreaming(false)
                         setStreamingContent("")
                         setStreamingCitations([])
@@ -313,7 +424,7 @@ export default function ChatPage() {
                     conversation_id: conversationId,
                     file: file,
                     top_k: 5,
-                    ...(conversationId === null && { collector_type: collectorType })
+                    ...(conversationId === null && { mode })
                 })
 
                 if (response.conversation_id && !conversationId) {
@@ -352,7 +463,7 @@ export default function ChatPage() {
                 setMessages(prev => [...prev, assistantMessage])
 
             } catch (fallbackErr: unknown) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
                 const error = fallbackErr as any;
                 // Check for 402 error in fallback
                 if (error?.status === 402) {
@@ -448,7 +559,7 @@ export default function ChatPage() {
             )}>
                 {messages.length > 0 && (
                     <ChatTools
-                        messages={messages}
+                        messages={messages as any}
                         onDelete={handleDeleteConversation}
                     />
                 )}
@@ -469,8 +580,8 @@ export default function ChatPage() {
                                     onSendMessage={handleSendMessage}
                                     message={inputMessage}
                                     setMessage={setInputMessage}
-                                    collectorType={collectorType}
-                                    onCollectorTypeChange={setCollectorType}
+                                    mode={mode}
+                                    onModeChange={setMode}
                                     isNewConversation={true}
                                 />
                             </div>
@@ -567,46 +678,101 @@ export default function ChatPage() {
                                 )}
 
                                 {messages.map((message, idx) => {
+                                    const isLatestAssistant = idx === messages.length - 1 && message.role === 'assistant';
+                                    const isLastMsg = idx === messages.length - 1 && !isTyping && !isStreaming;
+                                    const heightForLatest = isLatestAssistant && !isTyping && !isStreaming ? dynamicMinHeight : undefined;
+
+                                    // Skip empty assistant messages (backend inserts these before tool calls)
+                                    if (message.role === 'assistant' && !message.content?.trim() && messages[idx + 1]?.role === 'tool') {
+                                        return null;
+                                    }
+
                                     return (
                                         <div
                                             key={idx}
-                                            className="flex flex-col w-full"
+                                            className={cn(
+                                                "flex flex-col w-full transition-all duration-300",
+                                                message.role === 'tool' && "!mt-0.5 !mb-0.5",
+                                                message.role === 'tool' && messages[idx - 1]?.role !== 'tool' && "!mt-3 md:!mt-4",
+                                                message.role !== 'tool' && messages[idx - 1]?.role === 'tool' && "!mt-3 md:!mt-4",
+                                            )}
                                             ref={idx === messages.length - 1 && message.role === 'user' ? lastUserMessageRef : null}
                                         >
                                             {message.document_name && (
                                                 <DocumentAttachment documentName={message.document_name} />
                                             )}
-                                            <ChatBubble
-                                                role={message.role}
-                                                content={message.content}
-                                                citations={message.citations}
-                                                onEdit={setInputMessage}
-                                                messageIndex={idx}
-                                                conversationId={conversationId ?? undefined}
-                                                testModeEnabled={testModeEnabled}
-                                                artifacts={message.artifacts}
-                                                onArtifactClick={openArtifact}
-                                            />
+                                            {message.role === 'tool' && message.tool_summary ? (
+                                                message.tool_summary.artifact ? (
+                                                    <ArtifactChip
+                                                        id={message.tool_summary.artifact.id}
+                                                        title={message.tool_summary.artifact.title}
+                                                        onClick={() => openArtifact(message.tool_summary!.artifact!.id, message.tool_summary!.artifact!.title)}
+                                                    />
+                                                ) : (
+                                                    <StaticToolIndicator
+                                                        label={message.tool_summary.label}
+                                                        toolName={message.tool_summary.tool_name}
+                                                    />
+                                                )
+                                            ) : (
+                                                <ChatBubble
+                                                    role={message.role as "user" | "assistant" | "system"}
+                                                    content={message.content}
+                                                    citations={message.citations}
+                                                    onEdit={setInputMessage}
+                                                    messageIndex={idx}
+                                                    conversationId={conversationId ?? undefined}
+                                                    testModeEnabled={testModeEnabled}
+                                                    artifacts={message.artifacts}
+                                                    onArtifactClick={openArtifact}
+                                                    minHeight={heightForLatest}
+                                                    isLast={isLastMsg && message.role === 'assistant'}
+                                                />
+                                            )}
                                         </div>
                                     );
                                 })}
 
-                                {(isTyping || isStreaming) && (
-                                    <div className="flex flex-col w-full">
-                                        <ChatBubble
-                                            role="assistant"
-                                            content={streamingContent}
-                                            citations={streamingCitations}
-                                            isStreaming={isStreaming}
-                                            isTyping={isTyping && !isStreaming}
-                                            artifacts={streamingArtifacts}
-                                            onArtifactClick={openArtifact}
-                                            status={streamingStatus}
-                                            onComplete={() => setIsPlanViewActive(false)}
-                                            minHeight={dynamicMinHeight}
-                                        />
-                                    </div>
-                                )}
+                                {(() => {
+                                    // Only show the temporary loading/streaming bubble if:
+                                    // 1. We actually have text content to show OR
+                                    // 2. We are typing but NO tools are running (to show initial skeleton)
+                                    // If a tool is running and we have no text, hiding this prevents the empty "assistant" box.
+                                    const isDocumentTool = streamingStatus?.tool === 'create_legal_document' || streamingStatus?.phase?.startsWith('document_creation');
+                                    const hasToolRunning = streamingStatus && !isDocumentTool &&
+                                        ['tool_start', 'research_plan_ready', 'research_step_done', 'context_collection_start'].includes(streamingStatus.phase);
+                                    const shouldShowStreamingBubble = (isTyping || isStreaming) && (streamingContent.length > 0 || !hasToolRunning);
+
+                                    return (
+                                        <>
+                                            {/* Inline StatusIndicator — rendered outside the ChatBubble */}
+                                            {(isTyping || isStreaming) && streamingStatus && (
+                                                <div className="flex flex-col w-full">
+                                                    <StatusIndicator
+                                                        status={streamingStatus}
+                                                        onComplete={() => setIsPlanViewActive(false)}
+                                                    />
+                                                </div>
+                                            )}
+
+                                            {shouldShowStreamingBubble ? (
+                                                <div className="flex flex-col w-full">
+                                                    <ChatBubble
+                                                        role="assistant"
+                                                        content={streamingContent}
+                                                        citations={streamingCitations}
+                                                        isStreaming={isStreaming}
+                                                        isTyping={isTyping && !isStreaming}
+                                                        artifacts={streamingArtifacts}
+                                                        onArtifactClick={openArtifact}
+                                                        minHeight={dynamicMinHeight}
+                                                        isLast
+                                                    />
+                                                </div>
+                                            ) : null}
+                                        </>
+                                    );
+                                })()}
 
                                 {/* Scroll anchor */}
                                 <div ref={scrollRef} />
@@ -618,8 +784,8 @@ export default function ChatPage() {
                                 onSendMessage={handleSendMessage}
                                 message={inputMessage}
                                 setMessage={setInputMessage}
-                                collectorType={collectorType}
-                                onCollectorTypeChange={setCollectorType}
+                                mode={mode}
+                                onModeChange={setMode}
                                 isNewConversation={conversationId === null}
                             />
                         </div>

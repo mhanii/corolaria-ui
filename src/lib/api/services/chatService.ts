@@ -15,6 +15,7 @@ import {
     DeleteResponse,
     StreamEvent,
     StreamStatusEvent,
+    StreamToolEvent,
     StreamChatCallbacks,
     CitationResponse,
 } from '../types';
@@ -58,8 +59,8 @@ export async function sendChatMessage(
 
     formData.append('top_k', (request.top_k || 5).toString());
 
-    if (request.collector_type) {
-        formData.append('collector_type', request.collector_type);
+    if (request.mode) {
+        formData.append('mode', request.mode);
     }
 
     if (request.file) {
@@ -227,8 +228,8 @@ export async function streamChatMessage(
 
     formData.append('top_k', (request.top_k || 5).toString());
 
-    if (request.collector_type) {
-        formData.append('collector_type', request.collector_type);
+    if (request.mode) {
+        formData.append('mode', request.mode);
     }
 
     if (request.file) {
@@ -319,6 +320,15 @@ export async function streamChatMessage(
                                         break;
                                     case 'status':
                                         callbacks.onStatus?.(data as StreamStatusEvent);
+                                        break;
+                                    case 'tool_start':
+                                    case 'tool_end':
+                                    case 'tool_error':
+                                        callbacks.onStatus?.({
+                                            ...(data as StreamToolEvent),
+                                            type: 'status',
+                                            phase: (data as any).type
+                                        } as unknown as StreamStatusEvent);
                                         break;
                                 }
                             } catch (parseError) {

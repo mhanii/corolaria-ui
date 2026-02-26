@@ -3,9 +3,8 @@
 import { Copy, Edit, ExternalLink, ChevronDown, ChevronUp } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { StatusIndicator } from "@/components/chat/StatusIndicator"
 import { Logo } from "@/components/ui/Logo"
-import { CitationResponse, ArticleDetailResponse, ArticleResult, ArtifactSummary, StreamStatusEvent } from "@/lib/api/types"
+import { CitationResponse, ArticleDetailResponse, ArticleResult, ArtifactSummary } from "@/lib/api/types"
 import { getArticleByNodeId } from "@/lib/api/services/searchService"
 import { ArticleDetailsModal } from "@/components/common/ArticleDetailsModal"
 import { ArtifactChip } from "@/components/chat/ArtifactChip"
@@ -18,7 +17,7 @@ import remarkGfm from 'remark-gfm'
 import { createIdToCitationMap } from "@/lib/citationUtils"
 
 interface ChatBubbleProps {
-    role: "user" | "assistant"
+    role: "user" | "assistant" | "system"
     content: string
     citations?: CitationResponse[]
     onEdit?: (content: string) => void
@@ -33,14 +32,14 @@ interface ChatBubbleProps {
     artifacts?: ArtifactSummary[] | null
     /** Callback when an artifact is clicked */
     onArtifactClick?: (artifactId: string, title: string) => void
-    /** Streaming status for document generation indicator */
-    status?: StreamStatusEvent | null
     /** Called when a phase (e.g. plan) is complete */
     onComplete?: () => void
     /** Whether the assistant is currently 'thinking' or preparing response */
     isTyping?: boolean
     /** Dynamic min-height to reserve space and push user message to top */
     minHeight?: string | number
+    /** Whether this is the last message in the conversation (controls showing action buttons) */
+    isLast?: boolean
 }
 
 /**
@@ -176,10 +175,10 @@ export function ChatBubble({
     testModeEnabled = false,
     artifacts,
     onArtifactClick,
-    status,
     onComplete,
     isTyping = false,
     minHeight,
+    isLast = false,
 }: ChatBubbleProps) {
     // const router = useRouter()
     const [showCitations, setShowCitations] = useState(false)
@@ -230,7 +229,7 @@ export function ChatBubble({
 
     return (
         <motion.div
-            layout
+            layout={isTyping}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
@@ -239,7 +238,7 @@ export function ChatBubble({
                 role === "user" ? "ml-auto items-end" : "mr-auto items-start",
                 isTyping && "w-full"
             )}
-            style={{ minHeight: isTyping ? minHeight : undefined }}
+            style={{ minHeight }}
         >
             <div
                 className={cn(
@@ -247,66 +246,93 @@ export function ChatBubble({
                     role === "user"
                         ? "bg-accent text-accent-foreground font-medium shadow-soft text-lg"
                         : "text-foreground",
-                    isTyping && "w-full bg-muted/20 border border-dashed border-muted-foreground/20 min-h-[100px] flex items-center justify-center"
+                    isTyping && "w-full bg-muted/20 border border-dashed border-muted-foreground/20 min-h-[80px] flex items-start justify-start p-4"
                 )}
             >
                 {isTyping ? (
-                    <div className="flex flex-col items-center gap-4 w-full py-8">
-                        <Logo animate size="lg" />
-                        <div className="flex flex-col items-center gap-2">
+                    <div className="flex items-start gap-4 w-full">
+                        <div className="mt-1 shrink-0">
+                            <Logo animate size="sm" />
+                        </div>
+                        <div className="flex flex-col items-start gap-2 flex-1 w-full overflow-hidden">
                             <span className="text-sm text-muted-foreground animate-pulse font-medium">
                                 Procesando tu consulta...
                             </span>
-                            {status && (
-                                <StatusIndicator
-                                    status={status}
-                                    onComplete={() => onComplete?.()}
-                                />
-                            )}
                         </div>
                     </div>
                 ) : (
-                    <div className={cn(
-                        "break-words [overflow-wrap:anywhere]",
-                        role === "assistant" && "text-foreground",
-                        role === "user" && "whitespace-pre-wrap leading-relaxed"
-                    )}>
-                        {renderedContent}
+                    <div className="flex flex-col gap-4">
+                        <div className={cn(
+                            "break-words [overflow-wrap:anywhere]",
+                            role === "assistant" && "text-foreground",
+                            role === "user" && "whitespace-pre-wrap leading-relaxed"
+                        )}>
+                            {renderedContent}
+                        </div>
                     </div>
                 )}
             </div>
 
-            {/* Artifacts (Documents) & Status (Generation) */}
-            {role === "assistant" && !isTyping && (
-                <div className="w-full">
-                    {/* Status indicator inside bubble flow */}
-                    {status?.phase?.startsWith('document_creation') && (
-                        <div className="mt-2 ml-14">
-                            <StatusIndicator
-                                status={status}
-                                onComplete={() => onComplete?.()}
-                            />
-                        </div>
-                    )}
 
-                    {/* Final artifact chips */}
-                    {artifacts && artifacts.length > 0 && (
-                        <div className="mt-2">
-                            {artifacts.map((artifact) => (
-                                <ArtifactChip
-                                    key={artifact.id}
-                                    id={artifact.id}
-                                    title={artifact.title}
-                                    onClick={() => onArtifactClick?.(artifact.id, artifact.title)}
-                                />
-                            ))}
+            {/* Citations section for assistant messages */}
+            {role === "assistant" && !isTyping && hasCitations && (
+                <div className="mt-2 w-full">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1 text-xs text-muted-foreground hover:text-accent hover:bg-accent/10 px-2 h-7"
+                        onClick={() => setShowCitations(!showCitations)}
+                    >
+                        {showCitations ? (
+                            <ChevronUp className="h-3 w-3" />
+                        ) : (
+                            <ChevronDown className="h-3 w-3" />
+                        )}
+                        {citations.length} {citations.length === 1 ? 'fuente' : 'fuentes'}
+                    </Button>
+
+                    {showCitations && (
+                        <div className="mt-2 space-y-2 max-w-full overflow-hidden">
+                            {citations.map((citation, arrayIndex) => {
+                                const displayIndex = arrayIndex + 1
+                                return (
+                                    <div
+                                        key={citation.cite_key}
+                                        className="flex items-start gap-2 p-2 rounded-lg bg-muted/50 border text-xs cursor-pointer hover:bg-muted/80 transition-colors max-w-full overflow-hidden"
+                                        onClick={() => handleCitationClick(citation.article_id)}
+                                    >
+                                        <span className="flex-shrink-0 inline-flex items-center justify-center w-5 h-5 rounded bg-accent/20 text-foreground/75 font-semibold text-[10px]">
+                                            {displayIndex}
+                                        </span>
+                                        <div className="flex-1 min-w-0 overflow-hidden">
+                                            <p className="font-medium text-foreground truncate">
+                                                {citation.article_number}
+                                            </p>
+                                            <p className="text-muted-foreground truncate max-w-[200px] sm:max-w-[300px] md:max-w-[400px]">
+                                                {citation.normativa_title}
+                                            </p>
+                                            {citation.article_path && (
+                                                <p className="text-muted-foreground/70 truncate text-[10px] max-w-[200px] sm:max-w-[300px] md:max-w-[400px]">
+                                                    {citation.article_path}
+                                                </p>
+                                            )}
+                                        </div>
+                                        <div className="flex-shrink-0 flex items-center gap-2">
+                                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-accent/10 text-foreground/75">
+                                                {Math.round(citation.score * 100)}%
+                                            </span>
+                                            <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                                        </div>
+                                    </div>
+                                )
+                            })}
                         </div>
                     )}
                 </div>
             )}
-            {/* ... rest of the component remains similar ... */}
-            {/* Action buttons for assistant messages - shown on hover */}
-            {role === "assistant" && !isTyping && (
+
+            {/* Action buttons for assistant messages - shown on hover, only on last message */}
+            {role === "assistant" && !isTyping && isLast && (
                 <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     {/* Beta feedback buttons - only in test mode with required props */}
                     {testModeEnabled && messageIndex !== undefined && conversationId && (

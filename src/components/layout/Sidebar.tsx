@@ -372,7 +372,7 @@ export function Sidebar() {
                                 </div>
 
                                 {expandedSections.includes("recentChats") && (
-                                    <div className="space-y-1 ml-6">
+                                    <div className="space-y-1 ml-6 max-h-[calc(100vh-22rem)] overflow-y-auto pr-2">
                                         {isLoadingChats ? (
                                             <div className="flex items-center gap-2 p-2 text-sm text-muted-foreground">
                                                 <Logo size="sm" animate />
@@ -383,7 +383,7 @@ export function Sidebar() {
                                                 No hay chats recientes
                                             </div>
                                         ) : (
-                                            conversations.slice(0, 10).map((conv) => (
+                                            conversations.map((conv) => (
                                                 <div key={conv.id} className="relative group overflow-hidden">
                                                     <Link
                                                         href={`/chat/${encodeURIComponent(conv.id)}`}
