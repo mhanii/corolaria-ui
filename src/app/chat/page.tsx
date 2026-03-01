@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ChatBubble } from "@/components/chat/ChatBubble"
 import { ChatInput } from "@/components/chat/ChatInput"
+import type { ChatInputHandle } from "@/components/chat/ChatInput"
 import { ChatTools } from "@/components/chat/ChatTools"
 import { DocumentAttachment } from "@/components/chat/DocumentAttachment"
 import { ArtifactView } from "@/components/chat/ArtifactView"
@@ -45,11 +46,10 @@ export default function ChatPage() {
     const [streamingArtifacts, setStreamingArtifacts] = useState<ArtifactSummary[]>([])
 
     const [streamingStatus, setStreamingStatus] = useState<StreamStatusEvent | null>(null)
-    const [isPlanViewActive, setIsPlanViewActive] = useState(false)
+    // isPlanViewActive was removed — it was set but never used to control rendering
     const [isTyping, setIsTyping] = useState(false)
     const [isStreaming, setIsStreaming] = useState(false)
     const [streamingContent, setStreamingContent] = useState("")
-    const [inputMessage, setInputMessage] = useState("")
     const [conversationId, setConversationId] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
     const [insufficientTokens, setInsufficientTokens] = useState(false)
@@ -58,14 +58,15 @@ export default function ChatPage() {
     const scrollAreaRef = useRef<HTMLDivElement>(null)
     const lastUserMessageRef = useRef<HTMLDivElement>(null)
     const abortControllerRef = useRef<AbortController | null>(null)
+    const chatInputRef = useRef<ChatInputHandle | null>(null)
     const [dynamicMinHeight, setDynamicMinHeight] = useState<string | number>('auto')
+    // Track whether we're actively receiving chunks so scroll can be instant
+    const isReceivingChunksRef = useRef(false)
 
     // Artifact state
     const [viewArtifactId, setViewArtifactId] = useState<string | null>(null)
     const [viewArtifactTitle, setViewArtifactTitle] = useState("")
     const [isArtifactViewOpen, setIsArtifactViewOpen] = useState(false)
-
-    // Use raw streaming content directly (no typewriter effect)
 
     // Redirect to login if not authenticated
     useEffect(() => {
@@ -75,17 +76,18 @@ export default function ChatPage() {
     }, [isAuthenticated, isAuthLoading, router])
 
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollIntoView({ behavior: 'smooth' })
-        }
+        // Scroll to bottom anchor on new messages.
+        // Use 'instant' during active streaming to prevent scroll animation
+        // from fighting the growing content; 'smooth' for new turns.
+        if (!scrollRef.current) return;
+        const behavior = (isTyping || isStreaming) ? 'instant' : 'smooth';
+        scrollRef.current.scrollIntoView({ behavior });
 
         // Calculate dynamic height when typing or streaming starts
         if ((isTyping || isStreaming) && scrollAreaRef.current && lastUserMessageRef.current) {
-            // Use requestAnimationFrame to ensure DOM is updated and layout is calculated
             requestAnimationFrame(() => {
                 if (scrollAreaRef.current && lastUserMessageRef.current) {
                     const scrollArea = scrollAreaRef.current;
-                    // Try to get the actual viewport if it's a Radix ScrollArea
                     const viewport = scrollArea.querySelector('[data-radix-scroll-area-viewport]');
                     const containerHeight = (viewport || scrollArea).clientHeight;
 
@@ -96,32 +98,15 @@ export default function ChatPage() {
                     if (parent) {
                         const style = window.getComputedStyle(parent);
                         const pb = parseFloat(style.paddingBottom);
-
-                        // Measure gap from message margin-top (standard in space-y)
                         const messageStyle = window.getComputedStyle(messageElement);
                         const gap = parseFloat(messageStyle.marginTop) || (window.innerWidth >= 768 ? 24 : 16);
-
-                        // We account for:
-                        // 1. Gap between user message and assistant bubble
-                        // 2. Gap between assistant bubble and the scroll anchor div (which is a separate child)
-                        // 3. Container's padding bottom
-                        // 4. Extra top margin (pseudomargin) to not hit the top edge
                         const topPadding = 16;
                         const totalOffset = gap * 2 + pb + topPadding;
-
                         const calculatedHeight = Math.max(200, containerHeight - messageHeight - totalOffset);
                         setDynamicMinHeight(`${calculatedHeight}px`);
                     }
                 }
             });
-
-            // Force scroll to bottom when expansion starts
-            // Small timeout to allow state update and DOM repaint
-            setTimeout(() => {
-                if (scrollRef.current) {
-                    scrollRef.current.scrollIntoView({ behavior: 'smooth' });
-                }
-            }, 100);
         }
     }, [messages, isTyping, isStreaming])
 
@@ -153,7 +138,6 @@ export default function ChatPage() {
 
         // Start loading state
         setIsTyping(true)
-        setIsPlanViewActive(false)
         setStreamingContent("")
         setStreamingStatus(null)
         setIsBusy(true)
@@ -163,7 +147,6 @@ export default function ChatPage() {
         const streamArtifacts: ArtifactSummary[] = []
         let researchItemCount = 0
         let hadPlanView = false
-
         let streamMetadata: Record<string, any> = {}
 
         try {
@@ -180,7 +163,6 @@ export default function ChatPage() {
                 {
                     onStatus: (status) => {
                         if (status.phase === 'research_plan_ready') {
-                            setIsPlanViewActive(true)
                             hadPlanView = true
                         }
 
@@ -504,7 +486,7 @@ export default function ChatPage() {
             // Allow clearing even if not persisted yet (just clears UI)
             setMessages([])
             setConversationId(null)
-            setInputMessage("")
+            chatInputRef.current?.setValue("")
             setStreamingContent("")
             setInsufficientTokens(false)
             setError(null)
@@ -577,9 +559,8 @@ export default function ChatPage() {
 
                             <div className="w-full">
                                 <ChatInput
+                                    ref={chatInputRef}
                                     onSendMessage={handleSendMessage}
-                                    message={inputMessage}
-                                    setMessage={setInputMessage}
                                     mode={mode}
                                     onModeChange={setMode}
                                     isNewConversation={true}
@@ -719,7 +700,7 @@ export default function ChatPage() {
                                                     role={message.role as "user" | "assistant" | "system"}
                                                     content={message.content}
                                                     citations={message.citations}
-                                                    onEdit={setInputMessage}
+                                                    onEdit={(content) => chatInputRef.current?.setValue(content)}
                                                     messageIndex={idx}
                                                     conversationId={conversationId ?? undefined}
                                                     testModeEnabled={testModeEnabled}
@@ -750,7 +731,6 @@ export default function ChatPage() {
                                                 <div className="flex flex-col w-full">
                                                     <StatusIndicator
                                                         status={streamingStatus}
-                                                        onComplete={() => setIsPlanViewActive(false)}
                                                     />
                                                 </div>
                                             )}
@@ -781,9 +761,8 @@ export default function ChatPage() {
 
                         <div className="px-3 md:px-6 pb-4 md:pb-6 pt-2 mt-auto shrink-0 animate-chat-descend">
                             <ChatInput
+                                ref={chatInputRef}
                                 onSendMessage={handleSendMessage}
-                                message={inputMessage}
-                                setMessage={setInputMessage}
                                 mode={mode}
                                 onModeChange={setMode}
                                 isNewConversation={conversationId === null}

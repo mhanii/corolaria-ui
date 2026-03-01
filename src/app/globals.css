@@ -221,6 +221,40 @@
     display: none;
     /* Chrome, Safari, Opera */
   }
+
+  /* Streaming cursor — CSS-only blink, no JS/framer-motion needed */
+  @keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+
+  .streaming-cursor {
+    display: inline-block;
+    width: 0.4em;
+    height: 1em;
+    background: hsl(var(--accent));
+    margin-left: 2px;
+    margin-bottom: -2px;
+    border-radius: 1px;
+    animation: cursor-blink 0.8s ease-in-out infinite;
+    vertical-align: text-bottom;
+  }
+
+  /* Chat bubble entry animation — replaces framer-motion motion.div */
+  @keyframes bubble-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-bubble-in {
+    animation: bubble-in 0.25s ease-out forwards;
+  }
 }
 
 /* Tiptap Editor Styles */

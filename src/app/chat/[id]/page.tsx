@@ -316,13 +316,15 @@ export default function ChatWithIdPage() {
                         streamingAreaRef.current?.setStatus(status)
                     },
                     onChunk: (chunk) => {
-                        // Hide loading skeleton once first chunk arrives
-                        if (!accumulatedContent) {
+                        const isFirstChunk = !accumulatedContent;
+
+                        if (isFirstChunk) {
                             setIsTyping(false)
                             setIsStreaming(true)
                             streamingAreaRef.current?.setTyping(false)
                             streamingAreaRef.current?.setStreaming(true)
                         }
+
                         accumulatedContent += chunk
                         streamingAreaRef.current?.setContent(accumulatedContent)
                     },

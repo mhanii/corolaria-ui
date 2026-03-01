@@ -10,9 +10,7 @@ import { ArticleDetailsModal } from "@/components/common/ArticleDetailsModal"
 import { ArtifactChip } from "@/components/chat/ArtifactChip"
 import { FeedbackButtons } from "@/components/beta"
 import { useState, useMemo, memo } from "react"
-// import { useRouter } from "next/navigation"
 import ReactMarkdown, { Components } from 'react-markdown'
-import { motion, AnimatePresence } from "framer-motion"
 import remarkGfm from 'remark-gfm'
 import { createIdToCitationMap } from "@/lib/citationUtils"
 
@@ -82,7 +80,7 @@ const AssistantMarkdown = memo(function AssistantMarkdown({
     citations: CitationResponse[],
     isStreaming: boolean
 }) {
-    // 1. Memoize processsed content (string replacements)
+    // 1. Memoize processed content (string replacements)
     const processedContent = useMemo(() => {
         if (!content) return "";
         return content.replace(/<cite id=["']?(\d+)["']?>([\s\S]*?)<\/cite>/g, (match, id, text) => {
@@ -138,8 +136,9 @@ const AssistantMarkdown = memo(function AssistantMarkdown({
             >
                 {processedContent}
             </ReactMarkdown>
+            {/* CSS-only blinking cursor — no JS animation needed */}
             {isStreaming && (
-                <span className="inline-block ml-0.5 text-accent font-normal whitespace-pre"> </span>
+                <span className="streaming-cursor" aria-hidden="true" />
             )}
         </>
     )
@@ -156,17 +155,13 @@ export const ChatBubble = memo(function ChatBubble({
     testModeEnabled = false,
     artifacts,
     onArtifactClick,
-    onComplete,
     isTyping = false,
     minHeight,
     isLast = false,
 }: ChatBubbleProps) {
-    // const router = useRouter()
     const [showCitations, setShowCitations] = useState(false)
     const [selectedArticle, setSelectedArticle] = useState<ArticleResult | ArticleDetailResponse | null>(null)
     const [dialogOpen, setDialogOpen] = useState(false)
-
-
 
     const handleAction = (action: string) => {
         if (action === "copy") {
@@ -178,34 +173,21 @@ export const ChatBubble = memo(function ChatBubble({
 
     const handleCitationClick = async (articleId: string) => {
         try {
-            // First show the dialog with loading state if needed, or just fetch
-            // We'll set a temporary object with just ID to trigger loading if we wanted, 
-            // but for now let's fetch then show, or show empty then fill.
-            // Better: fetch then show to avoid flickering empty modal, or show modal with valid loading state.
-            // Since ArticleDetailsModal expects an article object, let's fetch first.
-
-            // Actually, for better UX (immediate feedback), we might want to show a loader.
-            // But ArticleDetailsModal requires an article object. 
-            // Let's rely on the service to get data fast.
             const article = await getArticleByNodeId(articleId)
             setSelectedArticle(article)
             setDialogOpen(true)
         } catch (error) {
             console.error("Failed to load article details:", error)
-            // Optionally show toast error
         }
     }
 
     const hasCitations = citations.length > 0
 
     return (
-        <motion.div
-            layout={isTyping && !isStreaming} // Only animate layout when typing (skeleton), not when streaming (text growth)
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
+        // Plain div with CSS entry animation — no framer-motion layout tracking
+        <div
             className={cn(
-                "flex flex-col max-w-[95%] min-w-0 group",
+                "flex flex-col max-w-[95%] min-w-0 group animate-bubble-in",
                 role === "user" ? "ml-auto items-end" : "mr-auto items-start",
                 isTyping && "w-full"
             )}
@@ -214,13 +196,11 @@ export const ChatBubble = memo(function ChatBubble({
             <div
                 className={cn(
                     "rounded-2xl px-4 py-3",
-                    !isStreaming && "transition-all duration-300",
                     role === "user"
                         ? "bg-accent text-accent-foreground font-medium shadow-soft text-lg"
                         : "text-foreground",
                     isTyping && "w-full bg-accent/[0.03] border border-accent/10 min-h-[100px] flex items-start justify-start p-6 shadow-inner"
                 )}
-                style={{ contain: 'layout' }}
             >
                 {isTyping && !isStreaming ? (
                     <div className="flex items-start gap-4 w-full">
@@ -246,21 +226,11 @@ export const ChatBubble = memo(function ChatBubble({
                             role === "user" && "whitespace-pre-wrap leading-relaxed"
                         )}>
                             {role === "assistant" ? (
-                                <>
-                                    <AssistantMarkdown
-                                        content={content}
-                                        citations={citations}
-                                        isStreaming={isStreaming}
-                                    />
-                                    {isStreaming && (
-                                        <motion.span
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: [0, 1, 0] }}
-                                            transition={{ repeat: Infinity, duration: 0.8 }}
-                                            className="inline-block w-1.5 h-4 bg-accent ml-1 -mb-0.5 rounded-sm"
-                                        />
-                                    )}
-                                </>
+                                <AssistantMarkdown
+                                    content={content}
+                                    citations={citations}
+                                    isStreaming={isStreaming}
+                                />
                             ) : (
                                 content
                             )}
@@ -330,7 +300,6 @@ export const ChatBubble = memo(function ChatBubble({
             {/* Action buttons for assistant messages - shown on hover, only on last message */}
             {role === "assistant" && !isTyping && isLast && (
                 <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {/* Beta feedback buttons - only in test mode with required props */}
                     {testModeEnabled && messageIndex !== undefined && conversationId && (
                         <FeedbackButtons
                             messageIndex={messageIndex}
@@ -376,6 +345,6 @@ export const ChatBubble = memo(function ChatBubble({
                 onOpenChange={setDialogOpen}
                 onArticleChange={setSelectedArticle}
             />
-        </motion.div>
+        </div>
     )
 })

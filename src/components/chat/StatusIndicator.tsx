@@ -2,7 +2,7 @@
 "use client"
 
 import { useState, useEffect, useMemo, memo } from "react"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
 import { Loader2, Sparkles, Wrench, AlertTriangle, CheckCircle2, Globe, Scale } from "lucide-react"
 import { StreamStatusEvent } from "@/lib/api/types"
 import { cn } from "@/lib/utils"
@@ -111,16 +111,14 @@ export const StatusIndicator = memo(function StatusIndicator({ status, className
                 </div>
             )
         }
-        // If plan is still showing, don't render anything for document phases
         return null
     }
 
-    // Suppress end/completed phases entirely (no "Documento generado con éxito" etc.)
+    // Suppress end/completed phases entirely
     const isEndPhase = phase.endsWith('_end') || phase.includes('completed')
     if (isEndPhase && !showPlan) return null
 
-    // Stabilize the status passed to children
-    // If we are forcing the plan display during generation, we "mock" a research phase
+    // If we are forcing the plan display during generation, mock a research phase
     const effectiveStatus = (showPlan && isGenerationPhase)
         ? { ...status, phase: 'research_step_done' }
         : status
@@ -138,19 +136,15 @@ export const StatusIndicator = memo(function StatusIndicator({ status, className
                 />
             )}
 
-            {/* Active Tool Chip */}
-            <AnimatePresence mode="wait" initial={false}>
-                {isToolPhase && phase === 'tool_start' && (
-                    <ToolChip key={`tool-active-${status.tool}`} status={status} />
-                )}
-            </AnimatePresence>
+            {/* Active Tool Chip — plain conditional, no AnimatePresence overhead */}
+            {isToolPhase && phase === 'tool_start' && (
+                <ToolChip key={`tool-active-${status.tool}`} status={status} />
+            )}
 
             {/* Active Research Step */}
-            <AnimatePresence mode="wait" initial={false}>
-                {phase === 'research_step_done' && status.status === 'running' && !showPlan && (
-                    <ToolChip key={`research-active`} status={{ ...status, tool: 'research_step_done' }} />
-                )}
-            </AnimatePresence>
+            {phase === 'research_step_done' && status.status === 'running' && !showPlan && (
+                <ToolChip key="research-active" status={{ ...status, tool: 'research_step_done' }} />
+            )}
 
             {/* Generic status only when no plan and no tool */}
             {!showPlan && !isToolPhase && (
@@ -212,20 +206,13 @@ function ToolChip({ status, isStatic = false }: { status: StreamStatusEvent, isS
     // If it's a research step pretending to be a tool
     if (status.tool === 'research_step_done' || status.phase === 'research_step_done') {
         const isDone = status.status === 'completed' || isStatic;
-        const count = status.results_count ?? status.evidence_count ?? 0;
 
         return (
-            <motion.div
-                initial={isStatic ? false : { opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={isStatic ? undefined : { opacity: 0, y: -4 }}
-                className="flex items-center gap-2 py-1 w-full"
-            >
+            <div className="flex items-center gap-2 py-1 w-full">
                 <div className={cn(
                     "flex items-center gap-3 px-4 py-2 rounded-lg border text-sm w-full relative overflow-hidden",
-                    isDone ? "transition-all duration-300 border-accent/10 bg-accent/5 text-foreground opacity-80" : "border-accent/30 bg-accent/10 text-foreground shadow-sm"
+                    isDone ? "border-accent/10 bg-accent/5 text-foreground opacity-80" : "border-accent/30 bg-accent/10 text-foreground shadow-sm"
                 )}>
-                    {/* Background scanning effect when running */}
                     {!isDone && (
                         <div className="absolute top-0 bottom-0 left-[-100%] w-[200%] bg-gradient-to-r from-transparent via-accent/10 to-transparent animate-[shimmer_2s_infinite]" />
                     )}
@@ -247,7 +234,7 @@ function ToolChip({ status, isStatic = false }: { status: StreamStatusEvent, isS
                         </span>
                     </div>
                 </div>
-            </motion.div>
+            </div>
         );
     }
 
@@ -259,28 +246,21 @@ function ToolChip({ status, isStatic = false }: { status: StreamStatusEvent, isS
     const count = status.results_count ?? status.evidence_count ?? 0
 
     return (
-        <motion.div
-            initial={isStatic ? false : { opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={isStatic ? undefined : { opacity: 0, y: -4 }}
-            className="flex items-center gap-2 py-1 w-full"
-        >
+        <div className="flex items-center gap-2 py-1 w-full">
             <div className={cn(
                 "flex items-center gap-3 px-4 py-2.5 rounded-xl border text-sm font-medium w-full relative overflow-hidden",
-                isDone ? "transition-all duration-300" : "",
                 isError
                     ? "border-destructive/30 bg-destructive/5 text-destructive"
                     : isDone
                         ? "border-accent/30 bg-accent/5 text-accent"
                         : "border-accent/20 bg-accent/5 text-foreground shadow-[0_0_15px_rgba(59,130,246,0.1)]"
             )}>
-                {/* Background scanning effect when running */}
                 {!isError && !isDone && (
                     <div className="absolute top-0 bottom-0 left-[-100%] w-[200%] bg-gradient-to-r from-transparent via-accent/10 to-transparent animate-[shimmer_2s_infinite]" />
                 )}
 
                 <div className={cn(
-                    "p-1.5 rounded-lg flex items-center justify-center relative z-10 shrink-0 transition-colors duration-500",
+                    "p-1.5 rounded-lg flex items-center justify-center relative z-10 shrink-0",
                     isError ? "bg-destructive/10 text-destructive" : isDone ? "bg-accent/10 text-accent" : "bg-card border border-accent/20 text-accent shadow-inner shadow-accent/10"
                 )}>
                     {isError ? (
@@ -293,9 +273,7 @@ function ToolChip({ status, isStatic = false }: { status: StreamStatusEvent, isS
                             <div className="absolute inset-0 border border-accent rounded-full animate-ping opacity-30" />
                         </div>
                     ) : isLegal ? (
-                        <div className="relative">
-                            <Scale className="w-4 h-4 animate-bounce relative z-10" style={{ animationDuration: '2s' }} />
-                        </div>
+                        <Scale className="w-4 h-4 animate-bounce relative z-10" style={{ animationDuration: '2s' }} />
                     ) : (
                         <Wrench className="w-4 h-4 animate-[spin_3s_linear_infinite]" />
                     )}
@@ -310,14 +288,10 @@ function ToolChip({ status, isStatic = false }: { status: StreamStatusEvent, isS
                                 : (status.message || `Usando ${toolLabel}...`)}
                     </span>
                     {(!isError && !isDone && count > 0) && (
-                        <motion.span
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            className="text-[10.5px] text-muted-foreground mt-0.5 leading-none font-medium flex items-center gap-1"
-                        >
+                        <span className="text-[10.5px] text-muted-foreground mt-0.5 leading-none font-medium flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
                             {count} {count === 1 ? 'hallazgo' : 'hallazgos'} recuperados
-                        </motion.span>
+                        </span>
                     )}
                 </div>
 
@@ -329,7 +303,7 @@ function ToolChip({ status, isStatic = false }: { status: StreamStatusEvent, isS
                     </div>
                 )}
             </div>
-        </motion.div>
+        </div>
     )
 }
 
@@ -587,22 +561,16 @@ const ResearchFlow = memo(function ResearchFlow({
                                         isPending ? "opacity-30" : "opacity-100"
                                     )}>
                                         <div className="flex flex-col gap-1">
-                                            <AnimatePresence mode="wait">
-                                                <motion.span
-                                                    key={`${absoluteGroupIndex}-${displayText}`}
-                                                    initial={{ opacity: 0, y: 2 }}
-                                                    animate={{ opacity: 1, y: 0 }}
-                                                    exit={{ opacity: 0, y: -2 }}
-                                                    transition={{ duration: 0.3 }}
-                                                    className={cn(
-                                                        "text-sm transition-colors duration-500 font-sans leading-snug block",
-                                                        isActive ? "text-foreground font-semibold" :
-                                                            isCompleted ? "text-muted-foreground" : "text-muted-foreground/60"
-                                                    )}
-                                                >
-                                                    {displayText}
-                                                </motion.span>
-                                            </AnimatePresence>
+                                            <span
+                                                key={`${absoluteGroupIndex}-${displayText}`}
+                                                className={cn(
+                                                    "text-sm transition-colors duration-300 font-sans leading-snug block",
+                                                    isActive ? "text-foreground font-semibold" :
+                                                        isCompleted ? "text-muted-foreground" : "text-muted-foreground/60"
+                                                )}
+                                            >
+                                                {displayText}
+                                            </span>
                                             {isActive && (
                                                 <div className="flex items-center gap-1.5 text-[10px] text-accent font-bold uppercase tracking-tight animate-in slide-in-from-top-1 fade-in duration-300">
                                                     <Loader2 className="w-3 h-3 animate-spin" />
