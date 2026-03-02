@@ -224,8 +224,15 @@
 
   /* Streaming cursor — CSS-only blink, no JS/framer-motion needed */
   @keyframes cursor-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0;
+    }
   }
 
   .streaming-cursor {
@@ -246,6 +253,7 @@
       opacity: 0;
       transform: translateY(8px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -253,7 +261,22 @@
   }
 
   .animate-bubble-in {
-    animation: bubble-in 0.25s ease-out forwards;
+    animation: bubble-in 0.25s ease-out both;
+  }
+
+  /* Shimmer animation for loading states */
+  @keyframes shimmer {
+    0% {
+      background-position: 200% center;
+    }
+
+    100% {
+      background-position: -200% center;
+    }
+  }
+
+  .animate-shimmer {
+    animation: shimmer 2.5s linear infinite;
   }
 }
 

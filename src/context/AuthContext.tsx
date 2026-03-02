@@ -7,7 +7,7 @@
  * Provides user info, login/logout functions, and auth status.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import {
     login as apiLogin,
     logout as apiLogout,
@@ -137,7 +137,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         updateStoredTokenBalance(tokens);
     }, []);
 
-    const value: AuthContextType = {
+    const value: AuthContextType = useMemo(() => ({
         user,
         isAuthenticated: user !== null || SKIP_VERFICIATION,
         isLoading,
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         logout,
         refreshUser,
         updateTokenBalance,
-    };
+    }), [user, isLoading, login, logout, refreshUser, updateTokenBalance]);
 
     return (
         <AuthContext.Provider value={value}>

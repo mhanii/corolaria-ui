@@ -8,7 +8,7 @@ import { CitationResponse, ArticleDetailResponse, ArticleResult, ArtifactSummary
 import { getArticleByNodeId } from "@/lib/api/services/searchService"
 import { ArticleDetailsModal } from "@/components/common/ArticleDetailsModal"
 import { FeedbackButtons } from "@/components/beta"
-import { useState, memo } from "react"
+import { useState, useCallback, memo } from "react"
 
 import { AssistantMarkdown } from "@/components/chat/AssistantMarkdown"
 import { CitationList } from "@/components/chat/CitationList"
@@ -57,15 +57,15 @@ export const ChatBubble = memo(function ChatBubble({
     const [selectedArticle, setSelectedArticle] = useState<ArticleResult | ArticleDetailResponse | null>(null)
     const [dialogOpen, setDialogOpen] = useState(false)
 
-    const handleAction = (action: string) => {
-        if (action === "copy") {
-            navigator.clipboard.writeText(content)
-        } else if (action === "edit" && onEdit) {
-            onEdit(content)
-        }
-    }
+    const handleCopy = useCallback(() => {
+        navigator.clipboard.writeText(content)
+    }, [content])
 
-    const handleCitationClick = async (articleId: string) => {
+    const handleEdit = useCallback(() => {
+        onEdit?.(content)
+    }, [content, onEdit])
+
+    const handleCitationClick = useCallback(async (articleId: string) => {
         try {
             const article = await getArticleByNodeId(articleId)
             setSelectedArticle(article)
@@ -73,7 +73,7 @@ export const ChatBubble = memo(function ChatBubble({
         } catch (error) {
             console.error("Failed to load article details:", error)
         }
-    }
+    }, [])
 
     return (
         <div
@@ -146,7 +146,7 @@ export const ChatBubble = memo(function ChatBubble({
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-muted/50"
-                        onClick={() => handleAction("copy")}
+                        onClick={handleCopy}
                     >
                         <Copy className="h-3.5 w-3.5" />
                     </Button>
@@ -159,7 +159,7 @@ export const ChatBubble = memo(function ChatBubble({
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-muted/50"
-                        onClick={() => handleAction("copy")}
+                        onClick={handleCopy}
                     >
                         <Copy className="h-3.5 w-3.5" />
                     </Button>
@@ -167,7 +167,7 @@ export const ChatBubble = memo(function ChatBubble({
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-muted/50"
-                        onClick={() => handleAction("edit")}
+                        onClick={handleEdit}
                     >
                         <Edit className="h-3.5 w-3.5" />
                     </Button>

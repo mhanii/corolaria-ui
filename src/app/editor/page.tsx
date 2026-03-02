@@ -4,7 +4,7 @@ import { EditorToolbar } from "@/components/editor/EditorToolbar"
 import { EditorContent } from "@/components/editor/EditorContent"
 import { EditorSidebar } from "@/components/editor/EditorSidebar"
 import { useEditor } from "@/hooks/useEditor"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Monitor, Smartphone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -56,8 +56,8 @@ export default function EditorPage() {
         <div className="flex flex-col h-full overflow-hidden">
             <EditorToolbar
                 editor={editor}
-                onSave={() => saveContent()}
-                onAIAssistant={() => setShowAI(!showAI)}
+                onSave={saveContent}
+                onAIAssistant={useCallback(() => setShowAI(prev => !prev), [])}
                 onExportPDF={exportToPDF}
                 onExportDOCX={exportToDOCX}
                 isSaving={isSaving}

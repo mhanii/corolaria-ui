@@ -55,6 +55,8 @@ export function useChatStream({
     const [isLoadingConversation, setIsLoadingConversation] = useState(false)
 
     const abortControllerRef = useRef<AbortController | null>(null)
+    const userRef = useRef(user)
+    userRef.current = user
 
     useEffect(() => {
         if (insufficientTokens && user && user.available_tokens > 0) {
@@ -279,8 +281,8 @@ export function useChatStream({
                             }
                         }
 
-                        if (user && user.available_tokens > 0) {
-                            updateTokenBalance(user.available_tokens - 1)
+                        if (userRef.current && userRef.current.available_tokens > 0) {
+                            updateTokenBalance(userRef.current.available_tokens - 1)
                         }
 
                         const artifactToolMessages: Message[] = streamArtifacts
@@ -390,8 +392,8 @@ export function useChatStream({
                     })
                 }
 
-                if (user && user.available_tokens > 0) {
-                    updateTokenBalance(user.available_tokens - 1)
+                if (userRef.current && userRef.current.available_tokens > 0) {
+                    updateTokenBalance(userRef.current.available_tokens - 1)
                 }
 
                 const assistantMessage: Message = {
@@ -422,7 +424,7 @@ export function useChatStream({
                 setIsBusy(false)
             }
         }
-    }, [conversationId, mode, user, updateTokenBalance, testModeEnabled, openSurveyModal, setIsBusy, onArtifactOpen, streamingAreaRef, onConversationCreated])
+    }, [conversationId, mode, updateTokenBalance, testModeEnabled, openSurveyModal, setIsBusy, onArtifactOpen, streamingAreaRef, onConversationCreated])
 
     return {
         messages,

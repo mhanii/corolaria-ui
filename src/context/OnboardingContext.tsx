@@ -7,7 +7,7 @@
  * Tracks which tours have been shown and controls spotlight tours.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 
 // localStorage keys
@@ -141,7 +141,7 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
         setActiveTour({ tourId: null, currentStep: 0 });
     }, []);
 
-    const value: OnboardingContextType = {
+    const value: OnboardingContextType = useMemo(() => ({
         isLoaded,
         hasSeenWelcome,
         hasSeenChatTour,
@@ -153,7 +153,19 @@ export function OnboardingProvider({ children }: OnboardingProviderProps) {
         endTour,
         completeTour,
         resetTours,
-    };
+    }), [
+        isLoaded,
+        hasSeenWelcome,
+        hasSeenChatTour,
+        hasSeenSearchTour,
+        activeTour,
+        startTour,
+        nextStep,
+        prevStep,
+        endTour,
+        completeTour,
+        resetTours
+    ]);
 
     return (
         <OnboardingContext.Provider value={value}>

@@ -9,7 +9,6 @@ import { DocumentAttachment } from "@/components/chat/DocumentAttachment"
 import { ArtifactView } from "@/components/chat/ArtifactView"
 import { ArtifactChip } from "@/components/chat/ArtifactChip"
 import { StreamingArea, type StreamingAreaHandle } from "@/components/chat/StreamingArea"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Coins, AlertCircle, Sparkles } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
@@ -46,6 +45,9 @@ export default function ChatWithIdPage() {
         setViewArtifactTitle(title)
         setIsArtifactViewOpen(true)
     }, [collapseSidebar])
+
+    const handleCloseArtifact = useCallback(() => setIsArtifactViewOpen(false), [])
+    const noop = useCallback(() => { }, [])
 
     const {
         messages,
@@ -137,7 +139,7 @@ export default function ChatWithIdPage() {
             )}>
                 <ChatTools messages={messages as any} onDelete={handleDeleteConversation} />
 
-                <ScrollArea className="flex-1" ref={scrollAreaRef}>
+                <div ref={scrollAreaRef} className="flex-1 overflow-y-auto overscroll-contain">
                     <div className="space-y-4 md:space-y-6 px-3 md:px-6 py-4 md:py-6 relative pb-10">
                         {insufficientTokens && (
                             <div className="flex items-center gap-2 p-4 rounded-lg bg-accent/10 border border-accent/20 text-accent">
@@ -179,7 +181,7 @@ export default function ChatWithIdPage() {
                                 <div
                                     key={idx}
                                     className={cn(
-                                        "flex flex-col w-full transition-all duration-300",
+                                        "flex flex-col w-full",
                                         message.role === 'tool' && "!mt-0.5 !mb-0.5",
                                         message.role === 'tool' && messages[idx - 1]?.role !== 'tool' && "!mt-3 md:!mt-4",
                                         message.role !== 'tool' && messages[idx - 1]?.role === 'tool' && "!mt-3 md:!mt-4",
@@ -224,15 +226,15 @@ export default function ChatWithIdPage() {
                         <StreamingArea
                             ref={streamingAreaRef}
                             onArtifactClick={openArtifact}
-                            onStatusComplete={() => { }}
+                            onStatusComplete={noop}
                             dynamicMinHeight={dynamicMinHeight}
                         />
 
                         <div ref={scrollRef} />
                     </div>
-                </ScrollArea>
+                </div>
 
-                <div className="px-3 md:px-6 pb-4 md:pb-6 pt-2 mt-auto shrink-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+                <div className="px-3 md:px-6 pb-4 md:pb-6 pt-2 mt-auto shrink-0 bg-background/95">
                     <ChatInput
                         ref={chatInputRef}
                         onSendMessage={handleSendMessage}
@@ -246,7 +248,7 @@ export default function ChatWithIdPage() {
             <ArtifactView
                 artifactId={viewArtifactId}
                 isOpen={isArtifactViewOpen}
-                onClose={() => setIsArtifactViewOpen(false)}
+                onClose={handleCloseArtifact}
                 title={viewArtifactTitle}
                 className={cn(
                     "w-1/2 transition-all duration-300 ease-in-out bg-background",

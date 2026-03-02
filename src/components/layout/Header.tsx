@@ -1,5 +1,6 @@
 "use client"
 
+import { useCallback } from "react";
 import { Bell, Settings, User, LogOut, Coins, Menu, Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -24,10 +25,10 @@ export function Header() {
     const { toggle, isCollapsed } = useSidebar();
     const { theme, toggleTheme } = useTheme();
 
-    const handleLogout = () => {
+    const handleLogout = useCallback(() => {
         logout();
         router.push('/login');
-    };
+    }, [logout, router]);
 
     return (
         <header

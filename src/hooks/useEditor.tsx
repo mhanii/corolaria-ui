@@ -11,7 +11,7 @@ import { Color } from '@tiptap/extension-color'
 import Highlight from '@tiptap/extension-highlight'
 import Typography from '@tiptap/extension-typography'
 import CharacterCount from '@tiptap/extension-character-count'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { exportToPDF, exportToDOCX } from '@/lib/ExportUtils'
 
 const STORAGE_KEY = 'athen-editor-content'
@@ -87,7 +87,7 @@ export function useEditor() {
         }
     }, [editor])
 
-    const saveContent = (editorInstance?: Editor | null) => {
+    const saveContent = useCallback((editorInstance?: Editor | null) => {
         const activeEditor = editorInstance || editor
         if (!activeEditor) return
 
@@ -100,30 +100,30 @@ export function useEditor() {
         }
 
         setTimeout(() => setIsSaving(false), 500)
-    }
+    }, [editor])
 
-    const clearContent = () => {
+    const clearContent = useCallback(() => {
         if (editor) {
             editor.commands.setContent(defaultContent)
             saveContent(editor)
         }
-    }
+    }, [editor, saveContent])
 
-    const handleExportToPDF = async () => {
+    const handleExportToPDF = useCallback(async () => {
         try {
-            await exportToPDF(editor, 'documento.pdf')
+            if (editor) await exportToPDF(editor, 'documento.pdf')
         } catch (error) {
             console.error('Failed to export PDF:', error)
         }
-    }
+    }, [editor])
 
-    const handleExportToDOCX = async () => {
+    const handleExportToDOCX = useCallback(async () => {
         try {
-            await exportToDOCX(editor, 'documento.docx')
+            if (editor) await exportToDOCX(editor, 'documento.docx')
         } catch (error) {
             console.error('Failed to export DOCX:', error)
         }
-    }
+    }, [editor])
 
     return {
         editor,

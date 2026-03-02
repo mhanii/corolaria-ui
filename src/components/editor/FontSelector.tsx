@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { Editor } from '@tiptap/react'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,7 +16,7 @@ interface FontSelectorProps {
     editor: Editor | null
 }
 
-export function FontSelector({ editor }: FontSelectorProps) {
+export const FontSelector = memo(function FontSelector({ editor }: FontSelectorProps) {
     if (!editor) return null
 
     const currentFont = editor.getAttributes('textStyle').fontFamily || 'Inter'
@@ -77,4 +78,4 @@ export function FontSelector({ editor }: FontSelectorProps) {
             </SelectContent>
         </Select>
     )
-}
+})

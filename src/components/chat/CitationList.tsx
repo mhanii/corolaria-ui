@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, memo } from "react"
 import { ChevronDown, ChevronUp, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { CitationResponse } from "@/lib/api/types"
@@ -10,8 +10,9 @@ interface CitationListProps {
     onCitationClick: (articleId: string) => void
 }
 
-export function CitationList({ citations, onCitationClick }: CitationListProps) {
+export const CitationList = memo(function CitationList({ citations, onCitationClick }: CitationListProps) {
     const [showCitations, setShowCitations] = useState(false)
+    const toggleCitations = useCallback(() => setShowCitations(prev => !prev), [])
 
     if (citations.length === 0) return null
 
@@ -21,7 +22,7 @@ export function CitationList({ citations, onCitationClick }: CitationListProps) 
                 variant="ghost"
                 size="sm"
                 className="gap-1 text-xs text-muted-foreground hover:text-accent hover:bg-accent/10 px-2 h-7"
-                onClick={() => setShowCitations(!showCitations)}
+                onClick={toggleCitations}
             >
                 {showCitations ? (
                     <ChevronUp className="h-3 w-3" />
@@ -70,4 +71,4 @@ export function CitationList({ citations, onCitationClick }: CitationListProps) 
             )}
         </div>
     )
-}
+})

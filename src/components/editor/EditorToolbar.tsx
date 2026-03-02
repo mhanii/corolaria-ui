@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { Editor } from '@tiptap/react'
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -34,7 +35,7 @@ interface EditorToolbarProps {
     isSaving: boolean
 }
 
-export function EditorToolbar({ editor, onSave, onAIAssistant, onExportPDF, onExportDOCX, isSaving }: EditorToolbarProps) {
+export const EditorToolbar = memo(function EditorToolbar({ editor, onSave, onAIAssistant, onExportPDF, onExportDOCX, isSaving }: EditorToolbarProps) {
     if (!editor) {
         return null
     }
@@ -245,5 +246,5 @@ export function EditorToolbar({ editor, onSave, onAIAssistant, onExportPDF, onEx
             </DropdownMenu>
         </div>
     )
-}
+})
 

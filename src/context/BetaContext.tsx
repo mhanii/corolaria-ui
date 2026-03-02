@@ -7,7 +7,7 @@
  * Provides test mode status and survey modal controls.
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { getBetaStatus } from '@/lib/api';
 import { useAuth } from './AuthContext';
 
@@ -126,7 +126,7 @@ export function BetaProvider({ children }: BetaProviderProps) {
         }
     }, [updateTokenBalance]);
 
-    const value: BetaContextType = {
+    const value: BetaContextType = useMemo(() => ({
         testModeEnabled,
         availableTokens: user?.available_tokens ?? 0,
         requiresRefill,
@@ -138,7 +138,18 @@ export function BetaProvider({ children }: BetaProviderProps) {
         refreshStatus,
         openSurveyModal,
         closeSurveyModal,
-    };
+    }), [
+        testModeEnabled,
+        user?.available_tokens,
+        requiresRefill,
+        surveysCompleted,
+        surveyModalOpen,
+        isLoading,
+        isBusy,
+        refreshStatus,
+        openSurveyModal,
+        closeSurveyModal
+    ]);
 
     return (
         <BetaContext.Provider value={value}>

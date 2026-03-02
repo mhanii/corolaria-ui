@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, memo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -25,7 +25,7 @@ interface SearchResultsProps {
     query?: string;
 }
 
-export function SearchResults({ results, loading = false, error = null, query = '' }: SearchResultsProps) {
+export const SearchResults = memo(function SearchResults({ results, loading = false, error = null, query = '' }: SearchResultsProps) {
     const router = useRouter()
     const [selectedArticle, setSelectedArticle] = useState<ArticleResult | ArticleDetailResponse | null>(null)
     const [dialogOpen, setDialogOpen] = useState(false)
@@ -180,4 +180,4 @@ export function SearchResults({ results, loading = false, error = null, query = 
             />
         </div>
     )
-}
+})

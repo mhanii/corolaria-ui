@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { Editor } from '@tiptap/react'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,7 +15,7 @@ interface ColorPickerProps {
     editor: Editor | null
 }
 
-export function ColorPicker({ editor }: ColorPickerProps) {
+export const ColorPicker = memo(function ColorPicker({ editor }: ColorPickerProps) {
     if (!editor) return null
 
     const currentColor = editor.getAttributes('textStyle').color || '#000000'
@@ -61,4 +62,4 @@ export function ColorPicker({ editor }: ColorPickerProps) {
             </PopoverContent>
         </Popover>
     )
-}
+})

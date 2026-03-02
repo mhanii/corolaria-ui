@@ -32,6 +32,9 @@ const MarkdownComponents: Components = {
     table: ({ children, ...props }) => <div className="overflow-x-auto my-4"><table className="w-full border-collapse" {...props}>{children}</table></div>,
 }
 
+const remarkPluginsList = [remarkGfm]
+const rehypePluginsList = [rehypeRaw]
+
 interface AssistantMarkdownProps {
     content: string
     citations: CitationResponse[]
@@ -96,8 +99,8 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
 
     return (
         <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            rehypePlugins={[rehypeRaw]}
+            remarkPlugins={remarkPluginsList}
+            rehypePlugins={rehypePluginsList}
             components={components as any}
         >
             {processedContent}
