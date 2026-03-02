@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -30,10 +30,10 @@ export function SearchResults({ results, loading = false, error = null, query = 
     const [selectedArticle, setSelectedArticle] = useState<ArticleResult | ArticleDetailResponse | null>(null)
     const [dialogOpen, setDialogOpen] = useState(false)
 
-    const handleResultClick = (article: ArticleResult) => {
+    const handleResultClick = useCallback((article: ArticleResult) => {
         setSelectedArticle(article)
         setDialogOpen(true)
-    }
+    }, [])
 
 
 

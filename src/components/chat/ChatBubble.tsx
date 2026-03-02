@@ -12,6 +12,7 @@ import { FeedbackButtons } from "@/components/beta"
 import { useState, useMemo, memo } from "react"
 import ReactMarkdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import { createIdToCitationMap } from "@/lib/citationUtils"
 
 interface ChatBubbleProps {
@@ -82,11 +83,19 @@ const AssistantMarkdown = memo(function AssistantMarkdown({
 }) {
     // 1. Memoize processed content (string replacements)
     const processedContent = useMemo(() => {
-        if (!content) return "";
-        return content.replace(/<cite id=["']?(\d+)["']?>([\s\S]*?)<\/cite>/g, (match, id, text) => {
+        if (!content) return isStreaming ? '<span class="streaming-cursor"></span>' : '';
+        let text = content.replace(/<cite id=["']?(\d+)["']?>([\s\S]*?)<\/cite>/g, (match, id, text) => {
             return `[${text}](#citation-${id})`
         })
-    }, [content]);
+
+        if (isStreaming) {
+            // Inject the cursor string at the very end. rehypeRaw will parse this safely inside
+            // the last block element (like a <p>), ensuring it stays inline with the text!
+            text += ' <span class="streaming-cursor"></span>'
+        }
+
+        return text;
+    }, [content, isStreaming]);
 
     // 2. Create map of ID -> Citation (memoized)
     const idCitationMap = useMemo(() => createIdToCitationMap(citations), [citations]);
@@ -129,18 +138,13 @@ const AssistantMarkdown = memo(function AssistantMarkdown({
     }), [idCitationMap]);
 
     return (
-        <>
-            <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={components as any}
-            >
-                {processedContent}
-            </ReactMarkdown>
-            {/* CSS-only blinking cursor — no JS animation needed */}
-            {isStreaming && (
-                <span className="streaming-cursor" aria-hidden="true" />
-            )}
-        </>
+        <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw]}
+            components={components as any}
+        >
+            {processedContent}
+        </ReactMarkdown>
     )
 });
 

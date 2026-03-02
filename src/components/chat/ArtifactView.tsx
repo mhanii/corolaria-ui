@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -65,7 +65,7 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
     const [pageNumber, setPageNumber] = useState<number>(1)
     const [scale, setScale] = useState<number>(1.5)
 
-    const generatePdfDocument = (content: string): jsPDF => {
+    const generatePdfDocument = useCallback((content: string): jsPDF => {
         const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
@@ -143,7 +143,23 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
         })
 
         return doc
-    }
+    }, [])
+
+    const loadDocument = useCallback(async (id: string) => {
+        try {
+            setLoading(true)
+            setError(null)
+            const endpoint = buildApiUrl(`documents/${id}`)
+            const data = await get<DocumentContent>(endpoint)
+            setContent(data.current_version.content)
+            if (!title) setDocTitle(data.title)
+        } catch (err: any) {
+            console.error("Failed to load document:", err)
+            setError(err.message || "No se pudo cargar el documento")
+        } finally {
+            setLoading(false)
+        }
+    }, [title])
 
     // Generate PDF Blob URL when content changes (debounced)
     useEffect(() => {
@@ -178,7 +194,7 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
         }, 500) // Debounce 500ms
 
         return () => clearTimeout(timer)
-    }, [content])
+    }, [content, generatePdfDocument])
 
     // Note: We deliberately removed the cleanup useEffect that revokes on unmount,
     // because we want to keep the URL in the global cache for reuse.
@@ -187,37 +203,19 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
         if (artifactId) {
             loadDocument(artifactId)
         }
-    }, [artifactId])
+    }, [artifactId, loadDocument])
 
     // Update local title if prop changes
     useEffect(() => {
         if (title) setDocTitle(title)
     }, [title])
-
-    const loadDocument = async (id: string) => {
-        try {
-            setLoading(true)
-            setError(null)
-            const endpoint = buildApiUrl(`documents/${id}`)
-            const data = await get<DocumentContent>(endpoint)
-            setContent(data.current_version.content)
-            if (!title) setDocTitle(data.title)
-        } catch (err: any) {
-            console.error("Failed to load document:", err)
-            setError(err.message || "No se pudo cargar el documento")
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    const handleCopy = () => {
+    const handleCopy = useCallback(() => {
         if (content) {
             navigator.clipboard.writeText(content)
-            // Could add toast here
         }
-    }
+    }, [content])
 
-    const handleDownload = async (format: 'md' | 'pdf' | 'docx') => {
+    const handleDownload = useCallback(async (format: 'md' | 'pdf' | 'docx') => {
         if (!content) return
 
         const fileName = docTitle || "documento"
@@ -311,8 +309,7 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
         } catch (error) {
             console.error("Download failed:", error)
         }
-    }
-
+    }, [content, docTitle, generatePdfDocument])
 
 
     if (!artifactId) return null

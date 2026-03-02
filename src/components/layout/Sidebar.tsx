@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
@@ -28,6 +28,37 @@ import { uiConfig } from "@/config/uiConfig";
 import { useAuth } from "@/context/AuthContext";
 import { useSidebar } from "@/context/SidebarContext";
 import { getConversations, deleteConversation, ConversationSummary } from "@/lib/api";
+
+// Static data — defined at module level so they're never recreated on render
+const MAIN_NAV = [
+    { name: "Inicio", href: "/", icon: LayoutDashboard },
+    { name: "Buscador", href: "/buscador", icon: Search },
+    { name: "Chat", href: "/chat", icon: MessageSquare },
+    { name: "Editor", href: "/editor", icon: FileText },
+]
+
+const DIRECTORIES = [
+    {
+        id: "dir1",
+        name: "Casos Laborales",
+        chats: [
+            { id: "1", name: "Despido improcedente", preview: "Consulta sobre indemnización..." },
+            { id: "2", name: "Horas extras", preview: "Reclamación de horas..." },
+        ]
+    },
+    {
+        id: "dir2",
+        name: "Derecho Civil",
+        chats: [
+            { id: "3", name: "Arrendamiento", preview: "Contrato de alquiler..." },
+        ]
+    },
+]
+
+const RECENT_SEARCHES = [
+    { name: "Código Civil Art. 1254", type: "Ley", href: "/buscador" },
+    { name: "Sentencia 123/2024", type: "Jurisprudencia", href: "/buscador" },
+]
 
 export function Sidebar() {
     const pathname = usePathname()
@@ -69,26 +100,26 @@ export function Sidebar() {
     };
 
 
-    const toggleSection = (section: string) => {
+    const toggleSection = useCallback((section: string) => {
         setExpandedSections(prev =>
             prev.includes(section) ? prev.filter(s => s !== section) : [...prev, section]
         );
-    };
+    }, []);
 
-    const toggleDirectory = (dirId: string) => {
+    const toggleDirectory = useCallback((dirId: string) => {
         setExpandedDirectories(prev =>
             prev.includes(dirId) ? prev.filter(d => d !== dirId) : [...prev, dirId]
         );
-    };
+    }, []);
 
-    const handleCreateDirectory = (name: string) => {
+    const handleCreateDirectory = useCallback((name: string) => {
         toast({
             title: "Directorio creado",
             description: `"${name}" ha sido creado exitosamente.`,
         });
-    };
+    }, [toast]);
 
-    const handleDeleteClick = (e: React.MouseEvent, chat: ConversationSummary) => {
+    const handleDeleteClick = useCallback((e: React.MouseEvent, chat: ConversationSummary) => {
         e.preventDefault();
         e.stopPropagation();
         setChatToDelete({
@@ -96,9 +127,9 @@ export function Sidebar() {
             name: chat.preview || 'Nueva conversación'
         });
         setIsDeleteDialogOpen(true);
-    };
+    }, []);
 
-    const confirmDeleteChat = async () => {
+    const confirmDeleteChat = useCallback(async () => {
         if (!chatToDelete) return;
 
         try {
@@ -125,42 +156,9 @@ export function Sidebar() {
             setIsDeleteDialogOpen(false);
             setChatToDelete(null);
         }
-    };
+    }, [chatToDelete, pathname, triggerRefresh, toast]);
 
-    const mainNav = [
-        { name: "Inicio", href: "/", icon: LayoutDashboard },
-        { name: "Buscador", href: "/buscador", icon: Search },
-        { name: "Chat", href: "/chat", icon: MessageSquare },
-        { name: "Editor", href: "/editor", icon: FileText },
-    ]
-
-    const directories = [
-        {
-            id: "dir1",
-            name: "Casos Laborales",
-            chats: [
-                { id: "1", name: "Despido improcedente", preview: "Consulta sobre indemnización..." },
-                { id: "2", name: "Horas extras", preview: "Reclamación de horas..." },
-            ]
-        },
-        {
-            id: "dir2",
-            name: "Derecho Civil",
-            chats: [
-                { id: "3", name: "Arrendamiento", preview: "Contrato de alquiler..." },
-            ]
-        },
-    ];
-
-    const recentChats = [
-        { name: "Consulta despido", type: "Chat", href: "/chat" },
-        { name: "Arrendamiento dudas", type: "Chat", href: "/chat" },
-    ];
-
-    const recentSearches = [
-        { name: "Código Civil Art. 1254", type: "Ley", href: "/buscador" },
-        { name: "Sentencia 123/2024", type: "Jurisprudencia", href: "/buscador" },
-    ];
+    // (Static nav/directory data moved to module level — see MAIN_NAV, DIRECTORIES, RECENT_SEARCHES above)
 
     return (
         <>
@@ -232,7 +230,7 @@ export function Sidebar() {
 
                         {/* Main Navigation */}
                         <nav className="grid gap-1">
-                            {mainNav.map((item, index) => (
+                            {MAIN_NAV.map((item, index) => (
                                 <Link
                                     key={index}
                                     href={item.href}
@@ -296,7 +294,7 @@ export function Sidebar() {
 
                                 {expandedSections.includes("cases") && (
                                     <div className="space-y-1 ml-2">
-                                        {directories.map((directory) => (
+                                        {DIRECTORIES.map((directory) => (
                                             <div key={directory.id}>
                                                 <button
                                                     onClick={() => toggleDirectory(directory.id)}
@@ -436,7 +434,7 @@ export function Sidebar() {
 
                                 {expandedSections.includes("recentSearches") && (
                                     <div className="space-y-1 ml-6">
-                                        {recentSearches.map((item, idx) => (
+                                        {RECENT_SEARCHES.map((item, idx) => (
                                             <Link
                                                 key={idx}
                                                 href={item.href}

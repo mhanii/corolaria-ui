@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 
 type Theme = "light" | "dark";
 
@@ -43,19 +43,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
         }
     }, [theme, mounted]);
 
-    const setTheme = (newTheme: Theme) => {
+    const setTheme = useCallback((newTheme: Theme) => {
         setThemeState(newTheme);
         localStorage.setItem(THEME_STORAGE_KEY, newTheme);
-    };
+    }, []);
 
-    const toggleTheme = () => {
-        setTheme(theme === "light" ? "dark" : "light");
-    };
+    const toggleTheme = useCallback(() => {
+        setThemeState(prev => {
+            const next = prev === "light" ? "dark" : "light";
+            localStorage.setItem(THEME_STORAGE_KEY, next);
+            return next;
+        });
+    }, []);
+
+    const value = useMemo(() => ({ theme, setTheme, toggleTheme }), [theme, setTheme, toggleTheme]);
 
     // Provide context even before mount, but with default values
     // This prevents "useTheme must be used within a ThemeProvider" errors during SSR
     return (
-        <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
+        <ThemeContext.Provider value={value}>
             {children}
         </ThemeContext.Provider>
     );
