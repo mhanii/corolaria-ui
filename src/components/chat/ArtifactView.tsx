@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -12,15 +12,13 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { get } from "@/lib/api/client"
 import { buildApiUrl } from "@/lib/api/config"
-import { Loader2, AlertCircle, X, Copy, Download, Code, Eye, FileText, FileJson, FileType, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react"
+import { Loader2, AlertCircle, X, Copy, Download, Code, Eye, FileText, FileType, ZoomIn, ZoomOut } from "lucide-react"
 import { cn } from "@/lib/utils"
-// Import download libraries
 import { saveAs } from "file-saver"
-import { Document as DocxDocument, Packer, Paragraph, TextRun } from "docx"
-import jsPDF from "jspdf"
+import { generatePdfDocument, generateDocxBlob } from "@/lib/markdownExport"
 import dynamic from "next/dynamic"
 
-// Dynamically import PdfRenderer to avoid SSR issues (DOMMatrix not defined)
+// Dynamically import PdfRenderer to avoid SSR issues
 const PdfRenderer = dynamic(() => import("./PdfRenderer"), {
     ssr: false,
     loading: () => (
@@ -32,7 +30,7 @@ const PdfRenderer = dynamic(() => import("./PdfRenderer"), {
 
 interface ArtifactViewProps {
     artifactId: string | null
-    isOpen?: boolean // Kept for interface compatibility but controlled by parent
+    isOpen?: boolean
     onClose: () => void
     title?: string
     className?: string
@@ -44,7 +42,6 @@ interface DocumentContent {
     current_version: {
         content: string
     }
-
 }
 
 // Simple Singleton Cache
@@ -62,88 +59,7 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
 
     const [pdfUrl, setPdfUrl] = useState<string | null>(null)
     const [numPages, setNumPages] = useState<number>(0)
-    const [pageNumber, setPageNumber] = useState<number>(1)
     const [scale, setScale] = useState<number>(1.5)
-
-    const generatePdfDocument = useCallback((content: string): jsPDF => {
-        const doc = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4'
-        })
-
-        // Set font to Times New Roman
-        doc.setFont("times", "normal")
-
-        const pageWidth = 210
-        const pageHeight = 297
-        const margin = 20
-        const contentWidth = pageWidth - (margin * 2)
-        let y = margin
-
-        const lineHeight = 5 // mm
-
-        const lines = content.split('\n')
-
-        const checkPageBreak = (height: number) => {
-            if (y + height > pageHeight - margin) {
-                doc.addPage()
-                y = margin
-                return true
-            }
-            return false
-        }
-
-        lines.forEach(line => {
-            const trimmed = line.trim()
-
-            if (trimmed.startsWith('# ')) {
-                doc.setFont("times", "bold")
-                doc.setFontSize(24)
-                const text = trimmed.substring(2)
-                const splitText = doc.splitTextToSize(text, contentWidth)
-                checkPageBreak(splitText.length * 10 + 5)
-                doc.text(splitText, margin, y + 8) // adjustment for baseline
-                y += (splitText.length * 10) + 5
-            } else if (trimmed.startsWith('## ')) {
-                doc.setFont("times", "bold")
-                doc.setFontSize(18)
-                const text = trimmed.substring(3)
-                const splitText = doc.splitTextToSize(text, contentWidth)
-                checkPageBreak(splitText.length * 8 + 4)
-                doc.text(splitText, margin, y + 6)
-                y += (splitText.length * 8) + 4
-            } else if (trimmed.startsWith('### ')) {
-                doc.setFont("times", "bold")
-                doc.setFontSize(14)
-                const text = trimmed.substring(4)
-                const splitText = doc.splitTextToSize(text, contentWidth)
-                checkPageBreak(splitText.length * 7 + 3)
-                doc.text(splitText, margin, y + 5)
-                y += (splitText.length * 7) + 3
-            } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-                doc.setFont("times", "normal")
-                doc.setFontSize(11)
-                const text = "• " + trimmed.substring(2)
-                const splitText = doc.splitTextToSize(text, contentWidth - 5)
-                checkPageBreak(splitText.length * lineHeight)
-                doc.text(splitText, margin + 5, y + 4)
-                y += (splitText.length * lineHeight)
-            } else if (trimmed === '') {
-                y += 3
-            } else {
-                doc.setFont("times", "normal")
-                doc.setFontSize(11)
-                // Simple paragraph handling
-                const splitText = doc.splitTextToSize(trimmed, contentWidth)
-                checkPageBreak(splitText.length * lineHeight)
-                doc.text(splitText, margin, y + 4)
-                y += (splitText.length * lineHeight)
-            }
-        })
-
-        return doc
-    }, [])
 
     const loadDocument = useCallback(async (id: string) => {
         try {
@@ -165,7 +81,6 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
     useEffect(() => {
         if (!content) return
 
-        // Check cache first
         if (pdfCache.content === content && pdfCache.url) {
             setPdfUrl(pdfCache.url)
             return
@@ -177,27 +92,20 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                 const blob = doc.output('blob')
                 const url = URL.createObjectURL(blob)
 
-                // Cleanup old cache if exists and is different
                 if (pdfCache.url && pdfCache.url !== url) {
                     URL.revokeObjectURL(pdfCache.url)
                 }
 
-                // Update cache
                 pdfCache.content = content
                 pdfCache.url = url
-
                 setPdfUrl(url)
-                setPageNumber(1) // Reset to page 1 on new content
             } catch (e) {
                 console.error("Failed to generate PDF preview", e)
             }
-        }, 500) // Debounce 500ms
+        }, 500)
 
         return () => clearTimeout(timer)
-    }, [content, generatePdfDocument])
-
-    // Note: We deliberately removed the cleanup useEffect that revokes on unmount,
-    // because we want to keep the URL in the global cache for reuse.
+    }, [content])
 
     useEffect(() => {
         if (artifactId) {
@@ -205,10 +113,10 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
         }
     }, [artifactId, loadDocument])
 
-    // Update local title if prop changes
     useEffect(() => {
         if (title) setDocTitle(title)
     }, [title])
+
     const handleCopy = useCallback(() => {
         if (content) {
             navigator.clipboard.writeText(content)
@@ -225,82 +133,7 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                 const blob = new Blob([content], { type: "text/markdown;charset=utf-8" })
                 saveAs(blob, `${fileName}.md`)
             } else if (format === 'docx') {
-                // Better DOCX generation
-                const sections = []
-                const lines = content.split('\n')
-                const currentList: any[] = []
-
-                // transform markdown lines to docx paragraphs
-                const kids: any[] = []
-
-                lines.forEach(line => {
-                    const trimmed = line.trim()
-
-                    if (trimmed.startsWith('# ')) {
-                        kids.push(new DocxDocument({
-                            /* this part is slightly wrong in logic, kept from original but fixed type import */
-                        } as any))
-                        // Correction: recreating the logic properly
-                        /* 
-                           Logic was:
-                           if heading... push new Paragraph
-                         */
-                    }
-                    // The previous logic was simpler, let's just reuse the structure but fix the type import
-                })
-
-                // Re-implementing the loop cleanly to avoid the "any" mess from my thought process
-                const docxLines = content.split('\n')
-                const docxChildren: any[] = []
-
-                docxLines.forEach(line => {
-                    const trimmed = line.trim()
-                    if (trimmed.startsWith('# ')) {
-                        docxChildren.push(new Paragraph({
-                            text: trimmed.substring(2),
-                            heading: "Heading1",
-                            spacing: { before: 240, after: 120 }
-                        }))
-                    } else if (trimmed.startsWith('## ')) {
-                        docxChildren.push(new Paragraph({
-                            text: trimmed.substring(3),
-                            heading: "Heading2",
-                            spacing: { before: 240, after: 120 }
-                        }))
-                    } else if (trimmed.startsWith('### ')) {
-                        docxChildren.push(new Paragraph({
-                            text: trimmed.substring(4),
-                            heading: "Heading3",
-                            spacing: { before: 240, after: 120 }
-                        }))
-                    } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-                        docxChildren.push(new Paragraph({
-                            children: [new TextRun(trimmed.substring(2))],
-                            bullet: { level: 0 }
-                        }))
-                    } else if (/^\d+\./.test(trimmed)) {
-                        const text = trimmed.replace(/^\d+\.\s*/, '')
-                        docxChildren.push(new Paragraph({
-                            children: [new TextRun(text)],
-                            numbering: { reference: "default-numbering", level: 0 }
-                        }))
-                    } else if (trimmed === '') {
-                        docxChildren.push(new Paragraph({ text: "" }))
-                    } else {
-                        docxChildren.push(new Paragraph({
-                            children: [new TextRun(line)],
-                            spacing: { after: 120 }
-                        }))
-                    }
-                })
-
-                const doc = new DocxDocument({
-                    sections: [{
-                        properties: {},
-                        children: docxChildren
-                    }]
-                })
-                const blob = await Packer.toBlob(doc)
+                const blob = await generateDocxBlob(content)
                 saveAs(blob, `${fileName}.docx`)
             } else if (format === 'pdf') {
                 const doc = generatePdfDocument(content)
@@ -309,17 +142,14 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
         } catch (error) {
             console.error("Download failed:", error)
         }
-    }, [content, docTitle, generatePdfDocument])
-
+    }, [content, docTitle])
 
     if (!artifactId) return null
 
     return (
         <div className={cn("flex flex-col h-full bg-background border-l border-border", className)}>
-            {/* Header */}
             <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 gap-4 h-14 shrink-0">
                 <div className="flex items-center gap-2 overflow-hidden flex-1">
-                    {/* View Toggle */}
                     <div className="flex items-center bg-muted/50 p-1 rounded-lg border border-border/50 shrink-0">
                         <button
                             onClick={() => setViewMode('preview')}
@@ -351,7 +181,6 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
 
                     <Separator orientation="vertical" className="h-6 mx-1" />
 
-                    {/* Title */}
                     <div className="flex items-center gap-2 min-w-0 flex-1">
                         <div className="p-1 rounded bg-muted/30">
                             <FileText className="w-4 h-4 text-muted-foreground" />
@@ -363,7 +192,6 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                     </div>
                 </div>
 
-                {/* Actions */}
                 <div className="flex items-center gap-1 shrink-0">
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={handleCopy} title="Copiar contenido">
                         <Copy className="w-4 h-4 text-muted-foreground" />
@@ -398,7 +226,6 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                 </div>
             </div>
 
-            {/* Content */}
             <div className="flex-1 overflow-hidden relative bg-muted/30">
                 {loading ? (
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -411,10 +238,8 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                     </div>
                 ) : (
                     <div className="h-full flex flex-col">
-                        {/* Custom PDF Controls Toolbar (Only in preview mode) */}
                         {viewMode === 'preview' && pdfUrl && (
                             <div className="flex items-center justify-center p-2 gap-2 border-b border-border/5 bg-background/50 backdrop-blur-sm z-10">
-                                {/* Zoom Controls Only */}
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -473,6 +298,6 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                     </div>
                 )}
             </div>
-        </div >
+        </div>
     )
 }
