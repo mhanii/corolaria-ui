@@ -47,14 +47,10 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
     isStreaming
 }: AssistantMarkdownProps) {
     const processedContent = useMemo(() => {
-        if (!content) return isStreaming ? '<span class="streaming-cursor"></span>' : '';
+        if (!content) return '';
         let text = content.replace(/<cite id=["']?(\d+)["']?>([\s\S]*?)<\/cite>/g, (match, id, text) => {
             return `[${text}](#citation-${id})`
         })
-
-        if (isStreaming) {
-            text += ' <span class="streaming-cursor"></span>'
-        }
 
         return text;
     }, [content, isStreaming]);

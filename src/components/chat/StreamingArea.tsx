@@ -12,6 +12,9 @@ export interface StreamingAreaHandle {
     setArtifacts: (artifacts: ArtifactSummary[]) => void
     setTyping: (isTyping: boolean) => void
     setStreaming: (isStreaming: boolean) => void
+    /** Signal that the backend stream is done; the interpolator will drain
+     *  its remaining buffer and then invoke the callback. */
+    completeStream: (onComplete: () => void) => void
     reset: () => void
 }
 
@@ -19,12 +22,15 @@ interface StreamingAreaProps {
     onArtifactClick: (id: string, title: string) => void
     onStatusComplete: () => void
     dynamicMinHeight: string | number
+    /** Milliseconds per word during interpolation. Default 30. Set to 0 to disable (instant). */
+    wordQueueSpeedMs?: number
 }
 
 export const StreamingArea = memo(forwardRef<StreamingAreaHandle, StreamingAreaProps>(function StreamingArea({
     onArtifactClick,
     onStatusComplete,
-    dynamicMinHeight
+    dynamicMinHeight,
+    wordQueueSpeedMs = 40
 }, ref) {
     const [displayedContent, setDisplayedContent] = useState("")
     const fullContentRef = useRef("")
@@ -35,11 +41,14 @@ export const StreamingArea = memo(forwardRef<StreamingAreaHandle, StreamingAreaP
     const [isTyping, setIsTyping] = useState(false)
     const [isStreaming, setIsStreaming] = useState(false)
 
+    // Completion callback: set by completeStream(), fired once the buffer is drained.
+    const completeCallbackRef = useRef<(() => void) | null>(null)
+
     useImperativeHandle(ref, () => ({
         setContent: (content) => {
             fullContentRef.current = content
-            // Snap to full content if we aren't actively streaming
-            if (!isStreaming) {
+            // Snap to full content if we aren't actively streaming or interpolation is disabled
+            if (!isStreaming || wordQueueSpeedMs === 0) {
                 setDisplayedContent(content)
                 displayedLengthRef.current = content.length
             }
@@ -49,9 +58,19 @@ export const StreamingArea = memo(forwardRef<StreamingAreaHandle, StreamingAreaP
         setArtifacts: (artifacts) => setStreamingArtifacts([...artifacts]),
         setTyping: setIsTyping,
         setStreaming: setIsStreaming,
+        completeStream: (onComplete) => {
+            // If interpolation is disabled or buffer is already drained, fire immediately
+            if (wordQueueSpeedMs === 0 || displayedLengthRef.current >= fullContentRef.current.length) {
+                onComplete()
+                return
+            }
+            // Otherwise, store callback — the rAF loop will call it once caught up
+            completeCallbackRef.current = onComplete
+        },
         reset: () => {
             fullContentRef.current = ""
             displayedLengthRef.current = 0
+            completeCallbackRef.current = null
             setDisplayedContent("")
             setStreamingStatus(null)
             setStreamingCitations([])
@@ -68,16 +87,14 @@ export const StreamingArea = memo(forwardRef<StreamingAreaHandle, StreamingAreaP
 
     // Word-level text interpolator using requestAnimationFrame chaining.
     //
-    // Why rAF chaining instead of setInterval:
-    // setInterval(33ms) fires on a fixed clock regardless of whether React finished rendering.
-    // ReactMarkdown re-parses the entire markdown string on every render — for growing content
-    // this takes 30–80ms, longer than the 33ms interval. When the next tick fires before React
-    // commits, React 18 batches both setState calls into ONE render, doubling the visible jump
-    // (e.g. 25 chars × 2 = 50 chars = ~10 words appearing at once).
+    // Uses a time-based accumulator: every frame we compute how many words
+    // should have been revealed since the last frame based on wordQueueSpeedMs,
+    // then advance to the next N word boundaries. This decouples reveal speed
+    // from frame rate and chunk size.
     //
-    // rAF chaining: schedule the next frame only AFTER the current callback returns. React
-    // processes setState, commits DOM, browser paints, THEN the next rAF fires.
-    // Result: exactly one setState per paint — no batching across frames.
+    // When completeStream() is called (backend done), the loop keeps running
+    // at the same pace until the buffer is fully drained, then fires the
+    // completion callback — eliminating the "freeze then snap" effect.
     useEffect(() => {
         if (!isStreaming) {
             setDisplayedContent(fullContentRef.current)
@@ -85,42 +102,89 @@ export const StreamingArea = memo(forwardRef<StreamingAreaHandle, StreamingAreaP
             return
         }
 
-        let rafId: number
+        // Interpolation disabled — snap to full content every frame
+        if (wordQueueSpeedMs === 0) {
+            let rafId: number
+            const passthrough = () => {
+                const target = fullContentRef.current
+                if (displayedLengthRef.current !== target.length) {
+                    displayedLengthRef.current = target.length
+                    setDisplayedContent(target)
+                }
+                // Check if we should complete
+                if (completeCallbackRef.current && displayedLengthRef.current >= fullContentRef.current.length) {
+                    const cb = completeCallbackRef.current
+                    completeCallbackRef.current = null
+                    cb()
+                    return
+                }
+                rafId = requestAnimationFrame(passthrough)
+            }
+            rafId = requestAnimationFrame(passthrough)
+            return () => cancelAnimationFrame(rafId)
+        }
 
-        const tick = () => {
+        let rafId: number
+        let lastTimestamp = 0
+        let wordDebt = 0 // fractional words owed from sub-interval frames
+
+        const tick = (timestamp: number) => {
+            if (lastTimestamp === 0) lastTimestamp = timestamp
+            const elapsed = timestamp - lastTimestamp
+            lastTimestamp = timestamp
+
             const target = fullContentRef.current
-            const pos = displayedLengthRef.current
+            let pos = displayedLengthRef.current
 
             if (pos >= target.length) {
-                // Nothing new yet — keep polling for incoming chunks
+                // Buffer drained — if stream is complete, fire callback
+                if (completeCallbackRef.current) {
+                    const cb = completeCallbackRef.current
+                    completeCallbackRef.current = null
+                    cb()
+                    return
+                }
+                // Otherwise keep polling for new chunks
                 rafId = requestAnimationFrame(tick)
                 return
             }
 
-            // Dynamic step: scale with backlog but cap for word-level granularity
-            // lag=200 → ceil(200/15)=14, capped at 10 → ~1.5 words per frame
-            // lag=50  → ceil(50/15)=4            → ~0.5 words per frame
-            // lag=10  → 1 char per frame (finishing touches)
-            const remaining = target.length - pos
-            const step = Math.max(1, Math.min(10, Math.ceil(remaining / 15)))
+            // Calculate how many words to reveal this frame
+            // Double the speed if the backend stream is done (completeCallbackRef.current is set)
+            const effectiveSpeed = completeCallbackRef.current ? wordQueueSpeedMs / 2 : wordQueueSpeedMs
+            wordDebt += elapsed / effectiveSpeed
 
-            let endPos = Math.min(pos + step, target.length)
+            const wordsThisFrame = Math.floor(wordDebt)
+            if (wordsThisFrame <= 0) {
+                rafId = requestAnimationFrame(tick)
+                return
+            }
+            wordDebt -= wordsThisFrame
 
-            // Snap forward to the next word boundary (space, newline, or end-of-string)
-            // so the user always sees complete words, never a word cut mid-character
-            while (endPos < target.length && target[endPos] !== ' ' && target[endPos] !== '\n') {
-                endPos++
+            // Advance pos by wordsThisFrame word boundaries
+            let endPos = pos
+            for (let w = 0; w < wordsThisFrame && endPos < target.length; w++) {
+                // Skip current word chars
+                while (endPos < target.length && target[endPos] !== ' ' && target[endPos] !== '\n') {
+                    endPos++
+                }
+                // Skip whitespace to land at start of next word
+                while (endPos < target.length && (target[endPos] === ' ' || target[endPos] === '\n')) {
+                    endPos++
+                }
             }
 
-            displayedLengthRef.current = endPos
-            setDisplayedContent(target.slice(0, endPos))
+            if (endPos > pos) {
+                displayedLengthRef.current = endPos
+                setDisplayedContent(target.slice(0, endPos))
+            }
 
             rafId = requestAnimationFrame(tick)
         }
 
         rafId = requestAnimationFrame(tick)
         return () => cancelAnimationFrame(rafId)
-    }, [isStreaming])
+    }, [isStreaming, wordQueueSpeedMs])
 
     if (!isTyping && !isStreaming && !streamingStatus) return null;
 

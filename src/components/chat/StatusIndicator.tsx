@@ -1,13 +1,12 @@
 "use client"
 
-import { useState, useEffect, memo } from "react"
-import { motion } from "framer-motion"
-import { Loader2 } from "lucide-react"
+import { useState, useEffect, useRef, memo } from "react"
+import { AnimatePresence, motion } from "framer-motion"
 import { StreamStatusEvent } from "@/lib/api/types"
 import { cn } from "@/lib/utils"
 
 import { ResearchFlow } from "./ResearchFlow"
-import { ToolChip, StaticToolIndicator } from "./ToolChip"
+import { StaticToolIndicator } from "./ToolChip"
 
 export { StaticToolIndicator }
 
@@ -17,24 +16,33 @@ interface StatusIndicatorProps {
     onComplete?: () => void
 }
 
+/** Phases that contribute a single transient "fading" status label — no persistence. */
+const TRANSIENT_PHASES = new Set([
+    'tool_start',
+    'research_agent_start',
+    'research_step_done',
+    'research_agent_end',
+    'context_collection_start',
+    'context_collection_end',
+    'research_reflection',
+    'generate_start',
+])
+
 export const StatusIndicator = memo(function StatusIndicator({ status, className, onComplete }: StatusIndicatorProps) {
     const [cachedPlan, setCachedPlan] = useState<string[]>([])
     const [isReplan, setIsReplan] = useState(false)
     const [visualStepIndex, setVisualStepIndex] = useState(-1)
     const [planFinished, setPlanFinished] = useState(false)
 
+    // Track current transient message text + a unique key so AnimatePresence
+    // can detect when the message changes and cross-fade.
+    const [transientMsg, setTransientMsg] = useState<{ text: string; key: number } | null>(null)
+    const transientKeyRef = useRef(0)
+
     const targetStepIndex = status?.step_index ?? -1
     const phase = status?.phase ?? ""
 
     const WAIT_PLAN_DISPLAY = process.env.NEXT_PUBLIC_WAIT_PLAN_DISPLAY === 'true'
-
-    const isResearchPhase = [
-        'research_plan_ready',
-        'research_step_done',
-        'research_reflection',
-        'research_agent_start'
-    ].includes(phase)
-    void isResearchPhase
 
     const isGenerationPhase = [
         'generate_start',
@@ -61,7 +69,7 @@ export const StatusIndicator = memo(function StatusIndicator({ status, className
         }
     }, [phase, status?.plan, status?.is_replan])
 
-    // 2. Manage visual progression (1s cadence relative to backend)
+    // 2. Manage visual progression for plan-based research flow
     useEffect(() => {
         if (cachedPlan.length === 0 || planFinished) return
 
@@ -95,6 +103,17 @@ export const StatusIndicator = memo(function StatusIndicator({ status, className
         }
     }, [planFinished, onComplete])
 
+    // 4. Update transient message whenever a relevant phase arrives and
+    //    there is no plan view active (plan view handles its own display).
+    useEffect(() => {
+        if (!status || cachedPlan.length > 0) return
+        if (!TRANSIENT_PHASES.has(phase)) return
+
+        const text = status.message || getPhaseLabel(phase)
+        transientKeyRef.current += 1
+        setTransientMsg({ text, key: transientKeyRef.current })
+    }, [status, phase, cachedPlan.length])
+
     if (!status) return null
 
     const showPlan = cachedPlan.length > 0 && !planFinished
@@ -110,6 +129,7 @@ export const StatusIndicator = memo(function StatusIndicator({ status, className
         return null
     }
 
+    // Suppress end phases unless there is a plan to wind down
     const isEndPhase = phase.endsWith('_end') || phase.includes('completed')
     if (isEndPhase && !showPlan) return null
 
@@ -119,6 +139,7 @@ export const StatusIndicator = memo(function StatusIndicator({ status, className
 
     return (
         <div className={cn("w-full py-1", className)}>
+            {/* Plan-based research flow (unchanged) */}
             {showPlan && (
                 <ResearchFlow
                     key="research-flow"
@@ -129,16 +150,25 @@ export const StatusIndicator = memo(function StatusIndicator({ status, className
                 />
             )}
 
-            {isToolPhase && phase === 'tool_start' && (
-                <ToolChip key={`tool-active-${status.tool}`} status={status} />
-            )}
-
-            {phase === 'research_step_done' && status.status === 'running' && !showPlan && (
-                <ToolChip key="research-active" status={{ ...status, tool: 'research_step_done' }} />
-            )}
-
-            {!showPlan && !isToolPhase && (
-                <GenericStatus key="generic-status" status={effectiveStatus} />
+            {/* When no plan: cross-fade a single status line instead of stacking */}
+            {!showPlan && TRANSIENT_PHASES.has(phase) && (
+                <AnimatePresence mode="wait">
+                    {transientMsg && (
+                        <motion.p
+                            key={transientMsg.key}
+                            initial={{ opacity: 0, y: 4 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -4 }}
+                            transition={{ duration: 0.25 }}
+                            className={cn(
+                                "text-sm italic font-medium",
+                                "bg-gradient-to-r from-accent via-accent/60 to-accent bg-clip-text text-transparent animate-shimmer bg-[length:200%_100%]"
+                            )}
+                        >
+                            {transientMsg.text}
+                        </motion.p>
+                    )}
+                </AnimatePresence>
             )}
         </div>
     )
@@ -156,7 +186,10 @@ function LoadingArtifactChip() {
                     <div className="flex flex-1 gap-4 min-w-0">
                         <div className="flex items-center w-[60px] relative shrink-0">
                             <div className="absolute top-0 left-0 flex flex-1 overflow-hidden w-[56px] h-[72px] rounded-xl bg-gradient-to-b from-background to-background/0 pt-4 items-start justify-center shadow-sm">
-                                <Loader2 className="w-6 h-6 text-accent animate-spin" />
+                                <svg className="w-6 h-6 text-accent animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                                </svg>
                             </div>
                         </div>
 
@@ -180,48 +213,21 @@ function LoadingArtifactChip() {
 
 function getPhaseLabel(phase: string): string {
     switch (phase) {
-        case 'context_collection_start': return 'Analizando contexto para la consulta...';
-        case 'context_collection_end': return 'Contexto identificado.';
-        case 'research_agent_start': return 'Iniciando investigación profunda...';
-        case 'research_agent_end': return 'Investigación finalizada.';
-        case 'generate_start': return 'Sintetizando y redactando respuesta...';
-        case 'generate_end': return 'Respuesta generada.';
-        case 'document_creation_started': return 'Redactando borrador del documento...';
-        case 'document_creation_completed': return 'Documento generado con éxito.';
-        case 'document_creation_failed': return 'Error al generar documento.';
-        case 'research_reflection': return 'Evaluando hallazgos...';
-        case 'research_step_done': return 'Paso de investigación completado.';
-        case 'research_plan_ready': return 'Plan de investigación listo.';
-        case 'tool_start': return 'Usando herramienta...';
-        case 'tool_end': return 'Herramienta completada.';
-        case 'tool_error': return 'Error en herramienta.';
-        default: return 'Procesando...';
+        case 'context_collection_start': return 'Analizando contexto para la consulta...'
+        case 'context_collection_end': return 'Contexto identificado.'
+        case 'research_agent_start': return 'Iniciando búsqueda...'
+        case 'research_agent_end': return 'Búsqueda finalizada.'
+        case 'generate_start': return 'Sintetizando y redactando respuesta...'
+        case 'generate_end': return 'Respuesta generada.'
+        case 'document_creation_started': return 'Redactando borrador del documento...'
+        case 'document_creation_completed': return 'Documento generado con éxito.'
+        case 'document_creation_failed': return 'Error al generar documento.'
+        case 'research_reflection': return 'Evaluando hallazgos...'
+        case 'research_step_done': return 'Paso de investigación completado.'
+        case 'research_plan_ready': return 'Plan de investigación listo.'
+        case 'tool_start': return 'Usando herramienta...'
+        case 'tool_end': return 'Herramienta completada.'
+        case 'tool_error': return 'Error en herramienta.'
+        default: return 'Procesando...'
     }
-}
-
-function GenericStatus({ status }: { status: StreamStatusEvent }) {
-    const label = status.message || getPhaseLabel(status.phase)
-
-    return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col gap-2"
-        >
-            <p className={cn(
-                "text-sm italic font-medium",
-                "bg-gradient-to-r from-accent via-accent/60 to-accent bg-clip-text text-transparent animate-shimmer bg-[length:200%_100%]"
-            )}>
-                {label}
-            </p>
-
-            {(status.phase === 'context_collection_start' || status.phase === 'research_agent_start') && (
-                <div className="space-y-2 opacity-30">
-                    <div className="h-3 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded animate-shimmer bg-[length:200%_100%]" style={{ width: '90%' }}></div>
-                    <div className="h-3 bg-gradient-to-r from-muted via-muted-foreground/10 to-muted rounded animate-shimmer bg-[length:200%_100%]" style={{ width: '75%' }}></div>
-                </div>
-            )}
-        </motion.div>
-    )
 }

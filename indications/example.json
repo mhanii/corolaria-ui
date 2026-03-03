@@ -1,0 +1,81 @@
+data: {
+    "type": "status",
+    "phase": "tool_start",
+    "message": "Buscando 'derechos de los extranjeros en España'...",
+    "source": "tool_executor",
+    "tool": "fast_research_tool"
+}
+
+data: {
+    "type": "status",
+    "phase": "research_agent_start",
+    "message": "Búsqueda concurrente iniciada...",
+    "source": "research_agent"
+}
+
+data: {
+    "type": "status",
+    "phase": "research_step_done",
+    "message": "Buscando Legislación e interpretaciones...",
+    "source": "research_agent",
+    "step_index": 0,
+    "status": "running"
+}
+
+data: {
+    "type": "status",
+    "phase": "research_step_done",
+    "message": "Legislación: 20 artículos/referencias encontradas.",
+    "source": "research_agent",
+    "step_index": 0,
+    "results_count": 20,
+    "status": "completed"
+}
+
+data: {
+    "type": "status",
+    "phase": "research_step_done",
+    "message": "Buscando Jurisprudencia de manera concurrente (Hechos, FJs, Doctrina)...",
+    "source": "research_agent",
+    "step_index": 1,
+    "status": "running"
+}
+
+data: {
+    "type": "status",
+    "phase": "research_step_done",
+    "message": "Jurisprudencia: 45 extractos encontrados.",
+    "source": "research_agent",
+    "step_index": 1,
+    "results_count": 45,
+    "status": "completed"
+}
+
+data: {
+    "type": "status",
+    "phase": "research_step_done",
+    "message": "Deduplicando y aplicando Ecuación de Scoring Unificado...",
+    "source": "research_agent",
+    "step_index": 2,
+    "status": "running"
+}
+
+data: {
+    "type": "status",
+    "phase": "research_agent_end",
+    "source": "research_agent",
+    "evidence_count": 7
+}
+
+data: {
+    "type": "status",
+    "phase": "tool_end",
+    "message": "Búsqueda de 'derechos de los extranjeros en España' completada",
+    "source": "tool_executor",
+    "tool": "fast_research_tool"
+}
+
+data: {
+    "type": "chunk",
+    "content": "En España, los derechos de los extranjeros están ampliamente reconocidos y garantizados, aunque con algunas particularidades respecto a los ciudadanos españoles.\n\nDe acuerdo con la doctrina del Tribunal Constitucional"
+}

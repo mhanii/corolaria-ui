@@ -136,9 +136,20 @@ export function useChatStream({
         let accumulatedContent = ""
         let streamCitations: CitationResponse[] = []
         const streamArtifacts: ArtifactSummary[] = []
-        let researchItemCount = 0
-        let hadPlanView = false
         let streamMetadata: Record<string, any> = {}
+
+        const flushAccumulatedText = () => {
+            if (accumulatedContent.trim().length > 0) {
+                const textToFlush = accumulatedContent;
+                setMessages(prev => [...prev, {
+                    role: "assistant",
+                    content: textToFlush,
+                    citations: [...streamCitations],
+                }]);
+                accumulatedContent = "";
+                streamingAreaRef.current?.setContent("");
+            }
+        };
 
         try {
             const abortController = await streamChatMessage(
@@ -151,58 +162,25 @@ export function useChatStream({
                 },
                 {
                     onStatus: (status) => {
-                        if (status.phase === 'research_plan_ready') {
-                            hadPlanView = true
-                        }
+                        const isInterruptingPhase = [
+                            'tool_start',
+                            'research_plan_ready',
+                            'context_collection_start',
+                            'research_step_done',
+                            'generate_start',
+                            'research_reflection',
+                            'research_agent_start'
+                        ].includes(status.phase);
 
-                        if (status.phase === 'research_step_done' && status.status === 'completed') {
-                            const stepCount = status.results_count ?? status.evidence_count ?? 0;
-                            researchItemCount += stepCount;
-
-                            if (!hadPlanView) {
-                                setMessages(prev => {
-                                    const existingIdx = prev.findIndex(m =>
-                                        m.role === 'tool' && m.tool_summary?.tool_name === 'research_step_done'
-                                    );
-                                    const label = `Buscó ${researchItemCount} artículos`;
-                                    if (existingIdx >= 0) {
-                                        const updated = [...prev];
-                                        updated[existingIdx] = {
-                                            ...updated[existingIdx],
-                                            tool_summary: { tool_name: 'research_step_done', label }
-                                        };
-                                        return updated;
-                                    }
-                                    return [...prev, {
-                                        role: 'tool',
-                                        content: '',
-                                        tool_summary: { tool_name: 'research_step_done', label }
-                                    }];
-                                });
-                            }
-                        }
-
-                        if (status.phase === 'generate_start' && hadPlanView && researchItemCount > 0) {
-                            setMessages(prev => {
-                                const exists = prev.some(m =>
-                                    m.role === 'tool' && m.tool_summary?.tool_name === 'research_consolidated'
-                                );
-                                if (exists) return prev;
-                                return [...prev, {
-                                    role: 'tool',
-                                    content: '',
-                                    tool_summary: {
-                                        tool_name: 'research_consolidated',
-                                        label: `Investigación completada · ${researchItemCount} hallazgos`
-                                    }
-                                }];
-                            });
+                        if (isInterruptingPhase) {
+                            flushAccumulatedText();
                         }
 
                         const isCompletedTool = status.phase === 'tool_end';
                         const isErrorAction = status.phase === 'tool_error';
 
                         if ((isCompletedTool || isErrorAction) && status.tool !== 'create_legal_document') {
+                            flushAccumulatedText();
                             setMessages(prev => {
                                 const lastMessages = prev.slice(-5);
                                 const isDuplicate = lastMessages.some(m =>
@@ -281,42 +259,59 @@ export function useChatStream({
                             }
                         }
 
-                        if (userRef.current && userRef.current.available_tokens > 0) {
-                            updateTokenBalance(userRef.current.available_tokens - 1)
-                        }
+                        // Finalization: push messages, reset streaming UI, update tokens.
+                        // Wrapped in a callback so completeStream can drain first.
+                        // updateTokenBalance lives here (not above) because it triggers
+                        // AuthContext → BetaContext re-render cascade + API call, which
+                        // would starve the rAF interpolation loop if fired immediately.
+                        const finalize = () => {
+                            if (userRef.current && userRef.current.available_tokens > 0) {
+                                updateTokenBalance(userRef.current.available_tokens - 1)
+                            }
 
-                        const artifactToolMessages: Message[] = streamArtifacts
-                            .map(a => ({
-                                role: 'tool' as const,
-                                content: '',
-                                tool_summary: {
-                                    tool_name: 'create_legal_document',
-                                    label: 'Documento creado',
-                                    artifact: { type: 'document', id: a.id, title: a.title }
+                            const artifactToolMessages: Message[] = streamArtifacts
+                                .map(a => ({
+                                    role: 'tool' as const,
+                                    content: '',
+                                    tool_summary: {
+                                        tool_name: 'create_legal_document',
+                                        label: 'Documento creado',
+                                        artifact: { type: 'document', id: a.id, title: a.title }
+                                    }
+                                }));
+
+                            setMessages(prev => {
+                                const existingArtifactIds = new Set(
+                                    prev.filter(m => m.role === 'tool' && m.tool_summary?.artifact?.id)
+                                        .map(m => m.tool_summary!.artifact!.id)
+                                );
+                                const newArtifactMsgs = artifactToolMessages.filter(
+                                    m => !existingArtifactIds.has(m.tool_summary!.artifact!.id)
+                                );
+
+                                const finalMessages = [...prev, ...newArtifactMsgs];
+                                if (accumulatedContent.trim().length > 0 || finalMessages.filter(m => m.role === 'assistant').length === 0) {
+                                    finalMessages.push({
+                                        role: "assistant",
+                                        content: accumulatedContent,
+                                        citations: streamCitations,
+                                    });
                                 }
-                            }));
+                                return finalMessages;
+                            })
 
-                        const assistantMessage: Message = {
-                            role: "assistant",
-                            content: accumulatedContent,
-                            citations: streamCitations,
+                            setIsStreaming(false)
+                            setIsTyping(false)
+                            streamingAreaRef.current?.reset()
+                            setIsBusy(false)
                         }
 
-                        setMessages(prev => {
-                            const existingArtifactIds = new Set(
-                                prev.filter(m => m.role === 'tool' && m.tool_summary?.artifact?.id)
-                                    .map(m => m.tool_summary!.artifact!.id)
-                            );
-                            const newArtifactMsgs = artifactToolMessages.filter(
-                                m => !existingArtifactIds.has(m.tool_summary!.artifact!.id)
-                            );
-                            return [...prev, ...newArtifactMsgs, assistantMessage];
-                        })
-
-                        setIsStreaming(false)
-                        setIsTyping(false)
-                        streamingAreaRef.current?.reset()
-                        setIsBusy(false)
+                        // Let the interpolator drain its remaining buffer before finalizing
+                        if (streamingAreaRef.current?.completeStream) {
+                            streamingAreaRef.current.completeStream(finalize)
+                        } else {
+                            finalize()
+                        }
                     },
                     onError: (message, details) => {
                         console.error('Stream error:', message, details)

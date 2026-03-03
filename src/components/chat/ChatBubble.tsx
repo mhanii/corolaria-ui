@@ -3,7 +3,6 @@
 import { Copy, Edit } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import { Logo } from "@/components/ui/Logo"
 import { CitationResponse, ArticleDetailResponse, ArticleResult, ArtifactSummary } from "@/lib/api/types"
 import { getArticleByNodeId } from "@/lib/api/services/searchService"
 import { ArticleDetailsModal } from "@/components/common/ArticleDetailsModal"
@@ -79,8 +78,7 @@ export const ChatBubble = memo(function ChatBubble({
         <div
             className={cn(
                 "flex flex-col max-w-[95%] min-w-0 group animate-bubble-in",
-                role === "user" ? "ml-auto items-end" : "mr-auto items-start",
-                isTyping && "w-full"
+                role === "user" ? "ml-auto items-end" : "mr-auto items-start"
             )}
             style={{ minHeight }}
         >
@@ -89,52 +87,33 @@ export const ChatBubble = memo(function ChatBubble({
                     "rounded-2xl px-4 py-3",
                     role === "user"
                         ? "bg-accent text-accent-foreground font-medium shadow-soft text-lg"
-                        : "text-foreground",
-                    isTyping && "w-full bg-accent/[0.03] border border-accent/10 min-h-[100px] flex items-start justify-start p-6 shadow-inner"
+                        : "text-foreground"
                 )}
             >
-                {isTyping && !isStreaming ? (
-                    <div className="flex items-start gap-4 w-full">
-                        <div className="mt-1 shrink-0">
-                            <Logo animate size="sm" />
-                        </div>
-                        <div className="flex flex-col items-start gap-3 flex-1 w-full overflow-hidden">
-                            <div className="flex flex-col gap-2 w-full">
-                                <div className="h-4 bg-accent/10 rounded-full w-[40%] animate-pulse" />
-                                <div className="h-4 bg-accent/5 rounded-full w-[80%] animate-pulse delay-75" />
-                                <div className="h-4 bg-accent/5 rounded-full w-[60%] animate-pulse delay-150" />
-                            </div>
-                            <span className="text-xs text-accent/60 font-medium tracking-wide uppercase">
-                                Generando respuesta legal...
-                            </span>
-                        </div>
+                <div className="flex flex-col gap-4">
+                    <div className={cn(
+                        "break-words [overflow-wrap:anywhere] relative",
+                        role === "assistant" && "text-foreground leading-relaxed",
+                        role === "user" && "whitespace-pre-wrap leading-relaxed"
+                    )}>
+                        {role === "assistant" ? (
+                            <AssistantMarkdown
+                                content={content}
+                                citations={citations}
+                                isStreaming={isStreaming}
+                            />
+                        ) : (
+                            content
+                        )}
                     </div>
-                ) : (
-                    <div className="flex flex-col gap-4">
-                        <div className={cn(
-                            "break-words [overflow-wrap:anywhere] relative",
-                            role === "assistant" && "text-foreground leading-relaxed",
-                            role === "user" && "whitespace-pre-wrap leading-relaxed"
-                        )}>
-                            {role === "assistant" ? (
-                                <AssistantMarkdown
-                                    content={content}
-                                    citations={citations}
-                                    isStreaming={isStreaming}
-                                />
-                            ) : (
-                                content
-                            )}
-                        </div>
-                    </div>
-                )}
+                </div>
             </div>
 
-            {role === "assistant" && !isTyping && (
+            {role === "assistant" && (
                 <CitationList citations={citations} onCitationClick={handleCitationClick} />
             )}
 
-            {role === "assistant" && !isTyping && isLast && (
+            {role === "assistant" && isLast && (
                 <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     {testModeEnabled && messageIndex !== undefined && conversationId && (
                         <FeedbackButtons
