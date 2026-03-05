@@ -85,11 +85,11 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
             {selectedFile && (
                 <div className="flex items-center gap-2 px-3 py-2 bg-accent/5 border-b border-border text-xs text-accent font-medium animate-in slide-in-from-top-2 duration-200">
                     <FileText className="h-3.5 w-3.5" />
-                    <span className="truncate max-w-[200px]">{selectedFile.name}</span>
+                    <span className="truncate max-w-[160px] min-[380px]:max-w-[220px]">{selectedFile.name}</span>
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-5 w-5 ml-auto hover:bg-accent/10 hover:text-accent rounded-full"
+                        className="h-7 w-7 ml-auto hover:bg-accent/10 hover:text-accent rounded-full"
                         onClick={() => setSelectedFile(null)}
                     >
                         <X className="h-3 w-3" />
@@ -102,13 +102,13 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                 onChange={(e) => setLocalMessage(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Escribe tu consulta legal aquí..."
-                className="min-h-[50px] md:min-h-[60px] max-h-[150px] md:max-h-[200px] w-[calc(100%-1rem)] md:w-[calc(100%-1.5rem)] mx-2 md:mx-3 mt-2 md:mt-3 resize-none border-0 shadow-none focus-visible:ring-0 bg-muted/50 rounded-xl p-3 md:p-4 text-sm md:text-base text-foreground placeholder:text-muted-foreground overflow-y-auto font-mono"
+                className="min-h-[56px] md:min-h-[60px] max-h-[160px] md:max-h-[200px] w-[calc(100%-1rem)] md:w-[calc(100%-1.5rem)] mx-2 md:mx-3 mt-2 md:mt-3 resize-none border-0 shadow-none focus-visible:ring-0 bg-muted/50 rounded-xl p-3 md:p-4 text-sm md:text-base text-foreground placeholder:text-muted-foreground overflow-y-auto"
                 data-tour-id="chat-input"
             />
 
 
-            <div className="flex items-center justify-between p-2 pl-2 md:pl-3">
-                <div className="flex items-center gap-2">
+            <div className="flex items-end justify-between gap-2 p-2 pl-2 md:pl-3 pb-safe">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                     {/* File attachment button */}
                     <TooltipProvider>
                         <Tooltip>
@@ -116,7 +116,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-8 w-8 text-muted-foreground hover:text-accent hover:bg-muted/50 transition-colors"
+                                    className="h-10 w-10 text-muted-foreground hover:text-accent hover:bg-muted/50 transition-colors shrink-0"
                                     onClick={() => fileInputRef.current?.click()}
                                 >
                                     <Paperclip className="h-4 w-4" />
@@ -139,7 +139,7 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                     {isNewConversation && onModeChange && (
                         <div
                             data-tour-id="quality-selector"
-                            className={`flex items-center overflow-hidden bg-muted/30 border border-border/50 rounded-lg transition-all duration-500 ease-in-out ${isQualityExpanded ? "max-w-[360px]" : "max-w-[180px]"}`}
+                            className={`flex items-center overflow-hidden bg-muted/30 border border-border/50 rounded-lg transition-all duration-300 ease-in-out min-w-0 ${isQualityExpanded ? "max-w-full min-[420px]:max-w-[360px]" : "max-w-[170px] min-[380px]:max-w-[190px]"}`}
                         >
                             <div className="p-1 w-full h-full flex items-center">
                                 {!isQualityExpanded ? (
@@ -147,20 +147,20 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => setIsQualityExpanded(true)}
-                                        className="h-7 text-xs font-medium text-muted-foreground hover:text-accent hover:bg-muted/50 transition-colors px-2 w-full justify-start md:justify-center whitespace-nowrap"
+                                        className="h-9 text-xs font-medium text-muted-foreground hover:text-accent hover:bg-muted/50 transition-colors px-2 w-full justify-start whitespace-nowrap"
                                     >
                                         Modo: {getModeLabel(mode)}
                                     </Button>
                                 ) : (
-                                    <div className="flex items-center gap-1 animate-in fade-in zoom-in-95 duration-300">
-                                        <span className="text-xs font-medium text-muted-foreground ml-2 mr-1 whitespace-nowrap">Modo:</span>
+                                    <div className="flex items-center gap-1 animate-in fade-in zoom-in-95 duration-300 min-w-0">
+                                        <span className="text-xs font-medium text-muted-foreground ml-2 mr-1 whitespace-nowrap hidden min-[400px]:inline">Modo:</span>
 
                                         {/* Agent — quick, reactive */}
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => { onModeChange('agent'); setIsQualityExpanded(false); }}
-                                            className={`h-7 px-2 text-xs transition-colors ${mode === 'agent' ? 'bg-accent/20 text-accent hover:bg-accent/40 hover:text-accent' : 'hover:bg-muted hover:text-accent text-muted-foreground'}`}
+                                            className={`h-9 px-2 text-xs transition-colors whitespace-nowrap ${mode === 'agent' ? 'bg-accent/20 text-accent hover:bg-accent/40 hover:text-accent' : 'hover:bg-muted hover:text-accent text-muted-foreground'}`}
                                         >
                                             Agente
                                         </Button>
@@ -170,10 +170,11 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => { onModeChange('workflow'); setIsQualityExpanded(false); }}
-                                            className={`h-7 px-2 text-xs font-bold transition-colors ${mode === 'workflow' ? 'bg-accent/20 hover:bg-accent/40' : 'hover:bg-muted hover:text-accent'}`}
+                                            className={`h-9 px-2 text-xs font-bold transition-colors whitespace-nowrap ${mode === 'workflow' ? 'bg-accent/20 hover:bg-accent/40' : 'hover:bg-muted hover:text-accent'}`}
                                         >
                                             <span className="inline-block bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 bg-clip-text !text-transparent">
-                                                Investigación Profunda
+                                                <span className="hidden min-[460px]:inline">Investigación Profunda</span>
+                                                <span className="min-[460px]:hidden">Profunda</span>
                                             </span>
                                         </Button>
                                     </div>
@@ -188,10 +189,10 @@ export const ChatInput = forwardRef<ChatInputHandle, ChatInputProps>(function Ch
                     disabled={!localMessage.trim() && !selectedFile}
                     variant="ghost"
                     size="sm"
-                    className="gap-1.5 text-sm font-medium transition-all hover:bg-accent/10 hover:text-accent"
+                    className="gap-1.5 h-10 px-3 text-sm font-medium transition-all hover:bg-accent/10 hover:text-accent shrink-0"
                     data-tour-id="send-button"
                 >
-                    Mandar
+                    <span className="hidden min-[360px]:inline">Mandar</span>
                     <CornerDownLeft className="w-3.5 h-3.5" />
                 </Button>
             </div>

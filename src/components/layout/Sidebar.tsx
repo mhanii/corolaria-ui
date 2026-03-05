@@ -19,9 +19,8 @@ import {
     DialogClose,
 } from "@/components/ui/dialog";
 import {
-    FileText, FolderOpen, Star, ChevronDown, ChevronRight, ChevronLeft, Plus,
-    MessageSquare, Search, Upload, LayoutDashboard, Scale, Folder, Loader2, X, PanelLeftClose, PanelLeft,
-    Trash2
+    FileText, ChevronDown, ChevronRight, ChevronLeft, Plus,
+    MessageSquare, Search, Folder, X, Trash2
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { uiConfig } from "@/config/uiConfig";
@@ -31,10 +30,8 @@ import { getConversations, deleteConversation, ConversationSummary } from "@/lib
 
 // Static data — defined at module level so they're never recreated on render
 const MAIN_NAV = [
-    { name: "Inicio", href: "/", icon: LayoutDashboard },
     { name: "Buscador", href: "/buscador", icon: Search },
     { name: "Chat", href: "/chat", icon: MessageSquare },
-    { name: "Editor", href: "/editor", icon: FileText },
 ]
 
 const DIRECTORIES = [
@@ -60,6 +57,40 @@ const RECENT_SEARCHES = [
     { name: "Sentencia 123/2024", type: "Jurisprudencia", href: "/buscador" },
 ]
 
+const SECTION_HEADING_CLASS = "text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70 group-hover:text-muted-foreground";
+
+const groupConversationsByDate = (conversations: ConversationSummary[]) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const lastWeek = new Date(today);
+    lastWeek.setDate(lastWeek.getDate() - 7);
+    const lastMonth = new Date(today);
+    lastMonth.setDate(lastMonth.getDate() - 30);
+
+    const groups: { [key: string]: ConversationSummary[] } = {
+        "Hoy": [],
+        "Ayer": [],
+        "Últimos 7 días": [],
+        "Últimos 30 días": [],
+        "Anteriores": []
+    };
+
+    conversations.forEach(conv => {
+        // Fallback to created_at if updated_at is missing for some reason
+        const dateString = conv.updated_at || conv.created_at;
+        const date = new Date(dateString);
+        if (date >= today) groups["Hoy"].push(conv);
+        else if (date >= yesterday) groups["Ayer"].push(conv);
+        else if (date >= lastWeek) groups["Últimos 7 días"].push(conv);
+        else if (date >= lastMonth) groups["Últimos 30 días"].push(conv);
+        else groups["Anteriores"].push(conv);
+    });
+
+    return Object.entries(groups).filter(([_, items]) => items.length > 0);
+};
+
 export function Sidebar() {
     const pathname = usePathname()
     const { isAuthenticated } = useAuth();
@@ -73,6 +104,8 @@ export function Sidebar() {
     const [chatToDelete, setChatToDelete] = useState<{ id: string; name: string } | null>(null);
     const { toast } = useToast();
 
+    const [isMobileViewport, setIsMobileViewport] = useState(false);
+
     // Fetch conversations when authenticated
     useEffect(() => {
         if (isAuthenticated) {
@@ -81,6 +114,13 @@ export function Sidebar() {
             setConversations([]);
         }
     }, [isAuthenticated, refreshTrigger]);
+
+    useEffect(() => {
+        const checkViewport = () => setIsMobileViewport(window.innerWidth < 1024);
+        checkViewport();
+        window.addEventListener("resize", checkViewport);
+        return () => window.removeEventListener("resize", checkViewport);
+    }, []);
 
     // Close sidebar on route change (mobile)
     useEffect(() => {
@@ -173,23 +213,18 @@ export function Sidebar() {
 
             {/* Sidebar */}
             <aside className={cn(
-                "fixed left-0 top-0 z-50 border-r border-border bg-card flex flex-col h-screen overflow-hidden",
-                // Smooth transition for width
+                "fixed left-0 top-0 z-50 border-r border-border/70 bg-card/95 backdrop-blur-md flex flex-col h-app font-display shadow-soft",
                 "transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                // Width based on collapsed state
-                isCollapsed ? "w-16" : "w-72",
-                // Mobile: translate based on open state
+                isCollapsed && !isMobileViewport ? "w-16" : "w-[88vw] max-w-80 lg:w-80",
                 isOpen ? "translate-x-0" : "-translate-x-full",
-                // Desktop: always visible
                 "lg:translate-x-0"
             )}>
-                {/* Logo Section */}
-                <div className="border-b border-border flex items-center p-4 h-16">
-                    {/* Logo - always on the left, clickable to expand when collapsed */}
-                    {isCollapsed ? (
+                {/* Logo / Header Row */}
+                <div className="border-b border-border/70 flex items-center px-3 h-16 pt-safe flex-shrink-0 bg-gradient-to-r from-background to-muted/20">
+                    {isCollapsed && !isMobileViewport ? (
                         <button
                             onClick={toggleCollapse}
-                            className="flex items-center hover:opacity-80 transition-opacity cursor-pointer"
+                            className="flex items-center justify-center h-10 w-10 rounded-xl hover:bg-black/[0.03] dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
                             title="Expandir"
                         >
                             <Logo size="md" />
@@ -199,132 +234,127 @@ export function Sidebar() {
                             <Logo size="md" />
                         </Link>
                     )}
-                    {/* Collapse button - desktop only, fades out when collapsed */}
                     <div
                         className={cn(
                             "ml-auto transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                            isCollapsed ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[100px]"
+                            isCollapsed && !isMobileViewport ? "opacity-0 max-w-0 overflow-hidden" : "opacity-100 max-w-[100px]"
                         )}
                     >
                         <button
-                            className="hidden lg:flex items-center justify-center h-8 w-8 rounded-lg hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors"
+                            className="hidden lg:flex items-center justify-center h-8 w-8 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground hover:text-foreground transition-colors"
                             onClick={toggleCollapse}
                             title="Contraer"
                         >
-                            <ChevronLeft className="h-5 w-5" />
+                            <ChevronLeft className="h-4 w-4" />
                         </button>
-                        {/* Close button - mobile only */}
                         <Button
                             variant="ghost"
                             size="icon"
                             className="lg:hidden h-8 w-8"
                             onClick={close}
                         >
-                            <X className="h-5 w-5" />
+                            <X className="h-4 w-4" />
                         </Button>
                     </div>
                 </div>
 
-                <ScrollArea className="flex-1 overflow-y-auto">
-                    <div className="space-y-4 p-4">
+                {/* Sidebar Content (fixed), only recent chats list scrolls */}
+                <div className="flex-1 min-h-0 py-4 px-3 min-w-0 h-full flex flex-col overflow-hidden pb-safe">
 
                         {/* Main Navigation */}
-                        <nav className="grid gap-1">
+                        <nav className="space-y-1 mb-4 min-w-0">
                             {MAIN_NAV.map((item, index) => (
                                 <Link
                                     key={index}
                                     href={item.href}
                                     onClick={(e) => {
-                                        // Only force refresh when clicking Chat from an existing chat (with ID)
-                                        // If already on /chat (new chat), do nothing
                                         if (item.href === '/chat' && pathname?.startsWith('/chat')) {
                                             e.preventDefault();
-                                            // Only reload if we're on a chat with an ID
                                             if (pathname !== '/chat') {
                                                 window.location.href = '/chat';
                                             }
                                         }
                                     }}
                                     className={cn(
-                                        "flex items-center rounded-lg hover:bg-muted px-3 h-10",
-                                        "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                                        pathname === item.href ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"
+                                        "relative flex items-center gap-3 rounded-xl px-3.5 h-11 transition-all duration-200 group min-w-0 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+                                        pathname === item.href
+                                            ? "bg-primary/10 text-primary border-primary/20 shadow-sm"
+                                            : "border-transparent text-muted-foreground hover:bg-black/[0.02] dark:hover:bg-white/[0.02] hover:text-foreground hover:border-border/70"
                                     )}
                                     title={isCollapsed ? item.name : undefined}
                                 >
-                                    <item.icon className="h-5 w-5 flex-shrink-0" />
-                                    <span
-                                        className={cn(
-                                            "text-base font-medium whitespace-nowrap overflow-hidden ml-3",
-                                            "transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
-                                            isCollapsed ? "max-w-0 opacity-0 ml-0" : "max-w-[200px] opacity-100"
-                                        )}
-                                    >
+                                    {pathname === item.href && !isCollapsed && (
+                                        <span className="absolute left-1.5 top-1/2 h-6 w-1 -translate-y-1/2 rounded-full bg-primary/70" />
+                                    )}
+                                    <item.icon className={cn(
+                                        "h-[18px] w-[18px] flex-shrink-0 transition-colors",
+                                        pathname === item.href ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                                    )} />
+                                    <span className={cn(
+                                        "text-[0.95rem] font-medium whitespace-nowrap overflow-hidden tracking-normal transition-all duration-300",
+                                        isCollapsed ? "max-w-0 opacity-0" : "max-w-[160px] opacity-100"
+                                    )}>
                                         {item.name}
                                     </span>
                                 </Link>
                             ))}
                         </nav>
 
-                        {!isCollapsed && <Separator />}
+                        {!isCollapsed && <Separator className="my-3" />}
 
-                        {/* Mis Casos - with directory structure */}
+                        {/* Mis Casos */}
                         {!isCollapsed && uiConfig.sidebar.cases && (
-                            <div>
-                                <div className="flex items-center justify-between mb-2">
+                            <div className="mb-4 min-w-0">
+                                <div className="flex items-center justify-between px-1 mb-2">
                                     <button
                                         onClick={() => toggleSection("cases")}
-                                        className="flex items-center gap-2 text-base font-medium text-foreground hover:text-foreground/80 transition-smooth"
+                                        className="flex items-center gap-1.5 group"
                                     >
-                                        <FolderOpen className="w-5 h-5" />
-                                        Mis Casos
-                                        {expandedSections.includes("cases") ? (
-                                            <ChevronDown className="w-4 h-4" />
-                                        ) : (
-                                            <ChevronRight className="w-4 h-4" />
-                                        )}
+                                        <span className={cn(SECTION_HEADING_CLASS, "transition-colors")}>
+                                            Mis Casos
+                                        </span>
+                                        {expandedSections.includes("cases")
+                                            ? <ChevronDown className="w-3 h-3 text-muted-foreground/60" />
+                                            : <ChevronRight className="w-3 h-3 text-muted-foreground/60" />}
                                     </button>
                                     <button
                                         onClick={() => setDialogOpen(true)}
-                                        className="text-muted-foreground hover:text-foreground transition-smooth"
+                                        className="p-1 rounded text-muted-foreground/60 hover:text-foreground hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-all"
+                                        title="Nuevo caso"
                                     >
-                                        <Plus className="w-5 h-5" />
+                                        <Plus className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
 
                                 {expandedSections.includes("cases") && (
-                                    <div className="space-y-1 ml-2">
+                                    <div className="space-y-0.5 min-w-0">
                                         {DIRECTORIES.map((directory) => (
-                                            <div key={directory.id}>
+                                            <div key={directory.id} className="min-w-0">
                                                 <button
                                                     onClick={() => toggleDirectory(directory.id)}
-                                                    className="flex items-center gap-2 w-full text-left p-2 rounded-lg hover:bg-muted transition-smooth group"
+                                                    className="flex items-center gap-2.5 w-full text-left px-2 py-2 rounded-sm hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-all group h-10"
                                                 >
-                                                    <Folder className="w-4 h-4 text-muted-foreground group-hover:text-foreground flex-shrink-0" />
-                                                    <span className="text-base font-medium text-foreground truncate group-hover:text-foreground/80 flex-1">
+                                                    <Folder className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                                                    <span className="flex-1 min-w-0 text-sm font-medium text-foreground truncate">
                                                         {directory.name}
                                                     </span>
-                                                    {expandedDirectories.includes(directory.id) ? (
-                                                        <ChevronDown className="w-4 h-4" />
-                                                    ) : (
-                                                        <ChevronRight className="w-4 h-4" />
-                                                    )}
+                                                    {expandedDirectories.includes(directory.id)
+                                                        ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                                        : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
                                                 </button>
 
                                                 {expandedDirectories.includes(directory.id) && (
-                                                    <div className="ml-6 space-y-1 mt-1">
+                                                    <div className="ml-4 pl-3 border-l border-border/50 mt-0.5 space-y-0.5 min-w-0">
                                                         {directory.chats.map((chat) => (
                                                             <Link
                                                                 key={chat.id}
                                                                 href={`/chat/${encodeURIComponent(chat.id)}`}
-                                                                className="flex items-start gap-2 w-full text-left p-2 rounded-lg hover:bg-muted transition-smooth group"
+                                                                className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-all group h-10"
                                                             >
-                                                                <MessageSquare className="w-4 h-4 text-muted-foreground group-hover:text-foreground flex-shrink-0 mt-0.5" />
                                                                 <div className="flex-1 min-w-0">
-                                                                    <p className="text-base font-medium text-foreground truncate group-hover:text-foreground/80">
+                                                                    <p className="text-sm font-medium text-foreground truncate w-[210px] sm:w-[240px] lg:w-[275px] group-hover:text-primary transition-colors">
                                                                         {chat.name}
                                                                     </p>
-                                                                    <p className="text-sm text-muted-foreground truncate">{chat.preview}</p>
                                                                 </div>
                                                             </Link>
                                                         ))}
@@ -337,115 +367,138 @@ export function Sidebar() {
                             </div>
                         )}
 
-                        {!isCollapsed && uiConfig.sidebar.cases && <Separator />}
+                        {!isCollapsed && uiConfig.sidebar.cases && <Separator className="my-3" />}
 
-                        {/* Recientes - Chats (only show when authenticated) */}
+                        {/* Chats Recientes */}
                         {!isCollapsed && isAuthenticated && (
-                            <div>
-                                <div className="flex items-center justify-between mb-2">
+                            <div className="mb-4 min-w-0 flex flex-col flex-1 min-h-0">
+                                <div className="flex items-center justify-between px-1 mb-2">
                                     <button
                                         onClick={() => toggleSection("recentChats")}
-                                        className="flex items-center gap-2 text-base font-medium text-foreground hover:text-foreground/80 transition-smooth"
+                                        className="flex items-center gap-1.5 group"
                                     >
-                                        <MessageSquare className="w-5 h-5" />
-                                        Chats Recientes
-                                        {expandedSections.includes("recentChats") ? (
-                                            <ChevronDown className="w-4 h-4" />
-                                        ) : (
-                                            <ChevronRight className="w-4 h-4" />
-                                        )}
+                                        <span className="text-sm font-semibold tracking-normal text-muted-foreground/90 group-hover:text-foreground transition-colors">
+                                            Chats recientes
+                                        </span>
+                                        {expandedSections.includes("recentChats")
+                                            ? <ChevronDown className="w-3 h-3 text-muted-foreground/60" />
+                                            : <ChevronRight className="w-3 h-3 text-muted-foreground/60" />}
                                     </button>
                                     <button
                                         onClick={() => {
-                                            // Only navigate if we're on a chat with an ID
-                                            // If already on /chat (new chat), do nothing
-                                            if (pathname !== '/chat') {
-                                                window.location.href = '/chat';
-                                            }
+                                            if (pathname !== '/chat') window.location.href = '/chat';
                                         }}
-                                        className="text-muted-foreground hover:text-foreground transition-smooth"
+                                        className="p-1 rounded text-muted-foreground/60 hover:text-foreground hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-all"
+                                        title="Nuevo chat"
                                     >
-                                        <Plus className="w-5 h-5" />
+                                        <Plus className="w-3.5 h-3.5" />
                                     </button>
                                 </div>
 
                                 {expandedSections.includes("recentChats") && (
-                                    <div className="space-y-1 ml-6 max-h-[calc(100vh-22rem)] overflow-y-auto pr-2">
-                                        {isLoadingChats ? (
-                                            <div className="flex items-center gap-2 p-2 text-sm text-muted-foreground">
-                                                <Logo size="sm" animate />
-                                                <span className="animate-pulse">Cargando...</span>
-                                            </div>
-                                        ) : conversations.length === 0 ? (
-                                            <div className="text-sm text-muted-foreground p-2">
-                                                No hay chats recientes
-                                            </div>
-                                        ) : (
-                                            conversations.map((conv) => (
-                                                <div key={conv.id} className="relative group overflow-hidden">
-                                                    <Link
-                                                        href={`/chat/${encodeURIComponent(conv.id)}`}
-                                                        className="flex items-start gap-2 w-full text-left p-2 rounded-lg hover:bg-muted transition-smooth"
-                                                    >
-                                                        <MessageSquare className="w-4 h-4 text-muted-foreground group-hover:text-foreground flex-shrink-0 mt-0.5" />
-                                                        <div className="flex-1 min-w-0">
-                                                            <p className="text-base font-medium text-foreground truncate group-hover:text-foreground/80 max-w-[180px]">
-                                                                {conv.preview || 'Nueva conversación'}
+                                    <div className="min-w-0 relative flex-1 min-h-0">
+                                        <ScrollArea className="h-full pr-1">
+                                            <div className="space-y-3 min-w-0 pb-8">
+                                                {isLoadingChats ? (
+                                                    <div className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground min-w-0">
+                                                        <Logo size="sm" animate />
+                                                        <span className="animate-pulse">Cargando...</span>
+                                                    </div>
+                                                ) : conversations.length === 0 ? (
+                                                    <p className="text-sm text-muted-foreground px-2 py-1">
+                                                        No hay chats recientes
+                                                    </p>
+                                                ) : (
+                                                    groupConversationsByDate(conversations).map(([groupName, items]) => (
+                                                        <div key={groupName} className="mb-3 min-w-0">
+                                                            <p className="text-[0.85rem] italic font-medium tracking-normal text-muted-foreground/60 px-2 mb-2">
+                                                                {groupName}
                                                             </p>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {conv.message_count} mensajes
-                                                            </p>
+                                                            <div className="space-y-1.5 min-w-0">
+                                                                {items.map((conv) => (
+                                                                    <div key={conv.id} className="relative group min-w-0">
+                                                                        {(() => {
+                                                                            const chatPath = `/chat/${encodeURIComponent(conv.id)}`;
+                                                                            const isActive = pathname === chatPath;
+                                                                            return (
+                                                                        <Link
+                                                                            href={chatPath}
+                                                                            className={cn(
+                                                                                "flex items-start w-full text-left px-3 py-2.5 rounded-xl border transition-all duration-150 pr-10",
+                                                                                isActive
+                                                                                    ? "bg-primary/10 border-primary/30 opacity-100"
+                                                                                    : "border-transparent bg-muted/10 hover:border-border/70 hover:bg-muted/25 opacity-65 hover:opacity-85"
+                                                                            )}
+                                                                        >
+                                                                            <div className="min-w-0 w-full">
+                                                                                <p className={cn(
+                                                                                    "text-sm font-medium transition-colors truncate w-[210px] sm:w-[240px] lg:w-[275px]",
+                                                                                    isActive ? "text-foreground" : "text-foreground/85 group-hover:text-foreground"
+                                                                                )}>
+                                                                                    {conv.preview || 'Nueva conversación'}
+                                                                                </p>
+                                                                                <p className={cn(
+                                                                                    "text-[0.72rem] mt-0.5",
+                                                                                    isActive ? "text-muted-foreground/90" : "text-muted-foreground/75"
+                                                                                )}>
+                                                                                    {conv.message_count} mensajes
+                                                                                </p>
+                                                                            </div>
+                                                                        </Link>
+                                                                            );
+                                                                        })()}
+                                                                        <button
+                                                                            onClick={(e) => handleDeleteClick(e, conv)}
+                                                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-all duration-150 z-10"
+                                                                            title="Eliminar chat"
+                                                                        >
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
                                                         </div>
-                                                    </Link>
-                                                    <button
-                                                        onClick={(e) => handleDeleteClick(e, conv)}
-                                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all duration-200 z-10"
-                                                        title="Eliminar chat"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            ))
-                                        )}
+                                                    ))
+                                                )}
+                                            </div>
+                                        </ScrollArea>
+                                        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-card/95 to-transparent" />
                                     </div>
                                 )}
                             </div>
                         )}
 
-                        {!isCollapsed && isAuthenticated && <Separator />}
+                        {!isCollapsed && isAuthenticated && <Separator className="my-3" />}
 
-                        {/* Recientes - Búsquedas */}
+                        {/* Búsquedas Recientes */}
                         {!isCollapsed && uiConfig.sidebar.recentSearches && (
-                            <div>
+                            <div className="mb-4 min-w-0">
                                 <button
                                     onClick={() => toggleSection("recentSearches")}
-                                    className="flex items-center justify-between w-full text-base font-medium text-foreground hover:text-foreground/80 transition-smooth mb-2"
+                                    className="flex items-center gap-1.5 px-1 mb-2 w-full group"
                                 >
-                                    <div className="flex items-center gap-2">
-                                        <Search className="w-5 h-5" />
+                                    <span className={cn(SECTION_HEADING_CLASS, "transition-colors flex-1 text-left")}>
                                         Búsquedas Recientes
-                                    </div>
-                                    {expandedSections.includes("recentSearches") ? (
-                                        <ChevronDown className="w-4 h-4" />
-                                    ) : (
-                                        <ChevronRight className="w-4 h-4" />
-                                    )}
+                                    </span>
+                                    {expandedSections.includes("recentSearches")
+                                        ? <ChevronDown className="w-3 h-3 text-muted-foreground/60" />
+                                        : <ChevronRight className="w-3 h-3 text-muted-foreground/60" />}
                                 </button>
 
                                 {expandedSections.includes("recentSearches") && (
-                                    <div className="space-y-1 ml-6">
+                                    <div className="space-y-0.5 min-w-0">
                                         {RECENT_SEARCHES.map((item, idx) => (
                                             <Link
                                                 key={idx}
                                                 href={item.href}
-                                                className="flex items-start gap-2 w-full text-left p-2 rounded-lg hover:bg-muted transition-smooth group"
+                                                className="flex items-center gap-2.5 px-2 py-2 rounded-sm hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-all group overflow-hidden h-11"
                                             >
-                                                <FileText className="w-4 h-4 text-muted-foreground group-hover:text-foreground flex-shrink-0 mt-0.5" />
+                                                <FileText className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-base font-medium text-foreground truncate group-hover:text-foreground/80">
+                                                    <p className="text-sm font-medium text-foreground/80 truncate max-w-full group-hover:text-foreground transition-colors">
                                                         {item.name}
                                                     </p>
-                                                    <p className="text-sm text-muted-foreground">{item.type}</p>
+                                                    <p className="text-xs text-muted-foreground/60 truncate max-w-full">{item.type}</p>
                                                 </div>
                                             </Link>
                                         ))}
@@ -454,35 +507,31 @@ export function Sidebar() {
                             </div>
                         )}
 
-                        {!isCollapsed && uiConfig.sidebar.recentSearches && <Separator />}
+                        {!isCollapsed && uiConfig.sidebar.recentSearches && <Separator className="my-3" />}
 
                         {/* Favoritos */}
                         {!isCollapsed && uiConfig.sidebar.favorites && (
-                            <div>
+                            <div className="mb-4 min-w-0">
                                 <button
                                     onClick={() => toggleSection("favorites")}
-                                    className="flex items-center justify-between w-full text-base font-medium text-foreground hover:text-foreground/80 transition-smooth mb-2"
+                                    className="flex items-center gap-1.5 px-1 mb-2 w-full group"
                                 >
-                                    <div className="flex items-center gap-2">
-                                        <Star className="w-5 h-5" />
+                                    <span className={cn(SECTION_HEADING_CLASS, "transition-colors flex-1 text-left")}>
                                         Favoritos
-                                    </div>
-                                    {expandedSections.includes("favorites") ? (
-                                        <ChevronDown className="w-4 h-4" />
-                                    ) : (
-                                        <ChevronRight className="w-4 h-4" />
-                                    )}
+                                    </span>
+                                    {expandedSections.includes("favorites")
+                                        ? <ChevronDown className="w-3 h-3 text-muted-foreground/60" />
+                                        : <ChevronRight className="w-3 h-3 text-muted-foreground/60" />}
                                 </button>
 
                                 {expandedSections.includes("favorites") && (
-                                    <div className="ml-6 text-base text-muted-foreground py-2">
+                                    <p className="text-sm text-muted-foreground/60 px-2 py-1">
                                         No hay favoritos
-                                    </div>
+                                    </p>
                                 )}
                             </div>
                         )}
-                    </div>
-                </ScrollArea>
+                </div>
 
                 <DirectoryDialog
                     open={dialogOpen}

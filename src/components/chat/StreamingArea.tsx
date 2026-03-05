@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle, memo } from "react"
 import { ChatBubble } from "./ChatBubble"
 import { StatusIndicator } from "./StatusIndicator"
+import { ArtifactChip } from "./ArtifactChip"
 import { StreamStatusEvent, CitationResponse, ArtifactSummary } from "@/lib/api"
 
 export interface StreamingAreaHandle {
@@ -196,6 +197,20 @@ export const StreamingArea = memo(forwardRef<StreamingAreaHandle, StreamingAreaP
                         status={streamingStatus}
                         onComplete={onStatusComplete}
                     />
+                </div>
+            )}
+
+            {streamingArtifacts.length > 0 && (
+                <div className="flex flex-col w-full">
+                    {streamingArtifacts.map((artifact) => (
+                        <div key={artifact.id} className="mt-2 mb-2">
+                            <ArtifactChip
+                                id={artifact.id}
+                                title={artifact.title}
+                                onClick={() => onArtifactClick(artifact.id, artifact.title)}
+                            />
+                        </div>
+                    ))}
                 </div>
             )}
 

@@ -5,7 +5,7 @@ import { EditorContent } from "@/components/editor/EditorContent"
 import { EditorSidebar } from "@/components/editor/EditorSidebar"
 import { useEditor } from "@/hooks/useEditor"
 import { useState, useEffect, useCallback } from "react"
-import { Monitor, Smartphone } from "lucide-react"
+import { Monitor } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
@@ -13,6 +13,8 @@ export default function EditorPage() {
     const { editor, isSaving, saveContent, exportToPDF, exportToDOCX } = useEditor()
     const [showAI, setShowAI] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
+
+    const handleToggleAI = useCallback(() => setShowAI(prev => !prev), [])
 
     useEffect(() => {
         const checkMobile = () => {
@@ -26,7 +28,7 @@ export default function EditorPage() {
     // Show mobile not supported message
     if (isMobile) {
         return (
-            <div className="flex flex-col items-center justify-center h-[calc(100vh-4rem)] px-6 text-center">
+            <div className="flex flex-col items-center justify-center h-app-frame px-6 text-center pb-safe">
                 <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-6">
                     <Monitor className="w-8 h-8 text-muted-foreground" />
                 </div>
@@ -57,7 +59,7 @@ export default function EditorPage() {
             <EditorToolbar
                 editor={editor}
                 onSave={saveContent}
-                onAIAssistant={useCallback(() => setShowAI(prev => !prev), [])}
+                onAIAssistant={handleToggleAI}
                 onExportPDF={exportToPDF}
                 onExportDOCX={exportToDOCX}
                 isSaving={isSaving}

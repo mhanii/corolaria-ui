@@ -60,10 +60,18 @@ export const StatusIndicator = memo(function StatusIndicator({ status, className
     // 1. Capture the plan and reset the finish latch
     useEffect(() => {
         if (phase === 'research_plan_ready' && status?.plan) {
-            setCachedPlan(status.plan)
-            setIsReplan(!!status.is_replan)
-            setPlanFinished(false)
-            if (!status.is_replan) {
+            if (status.is_replan) {
+                setCachedPlan(prev => {
+                    if (prev.length === 0) return status.plan!;
+                    const existingStr = prev.join('|');
+                    const newSteps = status.plan!.filter(step => !existingStr.includes(step));
+                    return [...prev, ...newSteps];
+                });
+                setPlanFinished(false) // replan reactivates the view
+            } else {
+                setCachedPlan(status.plan)
+                setIsReplan(false)
+                setPlanFinished(false)
                 setVisualStepIndex(0)
             }
         }
@@ -76,6 +84,9 @@ export const StatusIndicator = memo(function StatusIndicator({ status, className
         if (visualStepIndex >= cachedPlan.length - 1) {
             if (isGenerationPhase) {
                 setPlanFinished(true)
+            } else if (targetStepIndex >= cachedPlan.length) {
+                // Backend has moved beyond our known plan steps — dynamically extend
+                setCachedPlan(prev => [...prev, "Investigando en mayor profundidad..."])
             }
             return
         }
@@ -95,6 +106,15 @@ export const StatusIndicator = memo(function StatusIndicator({ status, className
             return () => clearTimeout(timer)
         }
     }, [visualStepIndex, targetStepIndex, isGenerationPhase, WAIT_PLAN_DISPLAY, planFinished, cachedPlan.length])
+
+    // 3. When generation starts, fast-forward visual step to the end then dismiss
+    useEffect(() => {
+        if (!isGenerationPhase || planFinished || cachedPlan.length === 0) return
+        // Snap to last step immediately so all circles fill, then mark done shortly after
+        setVisualStepIndex(cachedPlan.length - 1)
+        const timer = setTimeout(() => setPlanFinished(true), 500)
+        return () => clearTimeout(timer)
+    }, [isGenerationPhase])
 
     // 3. Signal completion exactly once when planFinished triggers
     useEffect(() => {
@@ -118,7 +138,7 @@ export const StatusIndicator = memo(function StatusIndicator({ status, className
 
     const showPlan = cachedPlan.length > 0 && !planFinished
 
-    if (phase === 'document_creation_started' || phase === 'document_creation_completed') {
+    if (phase === 'document_creation_started') {
         if (!showPlan) {
             return (
                 <div className="w-full py-1">
@@ -181,11 +201,11 @@ function LoadingArtifactChip() {
             animate={{ opacity: 1, y: 0 }}
             className="mt-3 mb-1 w-full"
         >
-            <div className="flex text-left font-sans rounded-lg overflow-hidden w-full px-4 bg-card/50">
+            <div className="flex text-left font-sans rounded-lg overflow-hidden border border-border/50 dark:border-border/80 w-full px-4 bg-card/50 dark:bg-muted/55 shadow-soft">
                 <div className="flex flex-1 align-start justify-between w-full py-4">
                     <div className="flex flex-1 gap-4 min-w-0">
                         <div className="flex items-center w-[60px] relative shrink-0">
-                            <div className="absolute top-0 left-0 flex flex-1 overflow-hidden w-[56px] h-[72px] rounded-xl bg-gradient-to-b from-background to-background/0 pt-4 items-start justify-center shadow-sm">
+                            <div className="absolute top-0 left-0 flex flex-1 overflow-hidden w-[56px] h-[72px] rounded-xl border border-border/70 bg-gradient-to-b from-background to-background/0 dark:from-card/95 dark:to-card/30 pt-4 items-start justify-center shadow-soft">
                                 <svg className="w-6 h-6 text-accent animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
@@ -203,7 +223,7 @@ function LoadingArtifactChip() {
                     </div>
 
                     <div className="flex min-w-0 items-center justify-center gap-2 shrink-0">
-                        <div className="h-9 w-[5rem] bg-muted/20 rounded-md" />
+                        <div className="h-9 w-[5rem] bg-muted/25 dark:bg-card/65 rounded-md border border-border/40" />
                     </div>
                 </div>
             </div>

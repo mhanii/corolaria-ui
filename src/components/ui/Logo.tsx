@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils"
 
 interface LogoProps {
-    size?: "sm" | "md" | "lg" | "xl" | "2xl"
+    size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl"
     className?: string
     animate?: boolean
 }
@@ -14,11 +14,12 @@ const sizeMap = {
     lg: 48,
     xl: 64,
     "2xl": 96,
+    "3xl": 128,
 }
 
 /**
  * Athen Logo component
- * @param size - Size of the logo (sm, md, lg, xl, 2xl)
+ * @param size - Size of the logo (sm, md, lg, xl, 2xl, 3xl)
  * @param className - Additional classes
  * @param animate - Whether to show the loading pulse animation
  */

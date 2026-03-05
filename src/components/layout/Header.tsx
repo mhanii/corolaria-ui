@@ -5,7 +5,6 @@ import { Bell, Settings, User, LogOut, Coins, Menu, Moon, Sun } from "lucide-rea
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/ui/Logo";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -32,28 +31,28 @@ export function Header() {
 
     return (
         <header
-            className={`fixed top-0 right-0 z-40 h-16 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-4 md:px-6 transition-[left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] left-0 ${isCollapsed ? 'lg:left-16' : 'lg:left-72'}`}
+            className={`fixed top-0 right-0 z-40 h-16 border-b border-border bg-card/80 backdrop-blur-md flex items-center justify-between px-2.5 min-[380px]:px-4 md:px-6 transition-[left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] left-0 ${isAuthenticated ? (isCollapsed ? 'lg:left-16' : 'lg:left-80') : 'lg:left-0'}`}
         >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 min-[380px]:gap-3 min-w-0">
                 {/* Hamburger menu - mobile only */}
                 <Button
                     variant="ghost"
                     size="icon"
-                    className="lg:hidden h-9 w-9"
+                    className={`${isAuthenticated ? "lg:hidden" : "hidden"} h-9 w-9`}
                     onClick={toggle}
                 >
                     <Menu className="h-5 w-5" />
                 </Button>
-                <h1 className="text-xl font-display font-bold text-foreground">Athen</h1>
+                <h1 className="text-lg min-[380px]:text-xl font-bold text-foreground truncate">Athen</h1>
             </div>
 
-            <div className="flex items-center gap-1 md:gap-2">
+            <div className="flex items-center gap-0.5 min-[380px]:gap-1 md:gap-2 flex-shrink-0">
                 {/* Token Balance Badge - Show when authenticated */}
                 {isAuthenticated && user && (
-                    <div className="flex items-center gap-1 md:gap-1.5 px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-accent/10 text-accent text-xs md:text-sm font-medium">
+                    <div className="hidden min-[340px]:flex items-center gap-1 px-1.5 min-[380px]:px-2 md:px-3 py-1 md:py-1.5 rounded-full bg-accent/10 text-accent text-xs md:text-sm font-medium max-w-[120px] min-[380px]:max-w-none">
                         <Coins className="w-3.5 h-3.5 md:w-4 md:h-4" />
                         <span>{user.available_tokens.toLocaleString()}</span>
-                        <span className="hidden sm:inline">tokens</span>
+                        <span className="hidden md:inline">tokens</span>
                     </div>
                 )}
 
@@ -127,4 +126,3 @@ export function Header() {
         </header>
     );
 }
-

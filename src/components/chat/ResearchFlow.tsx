@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, memo } from "react"
 import { motion } from "framer-motion"
-import { Loader2, Sparkles } from "lucide-react"
+import { Loader2, ListTodo } from "lucide-react"
 import { StreamStatusEvent } from "@/lib/api/types"
 import { cn } from "@/lib/utils"
 
@@ -11,6 +11,9 @@ interface ResearchFlowProps {
     plan: string[]
     isReplan: boolean
     visualStepIndex: number
+    groupsPerPage?: number
+    compact?: boolean
+    progressByClusterOnly?: boolean
 }
 
 export const ResearchFlow = memo(function ResearchFlow({
@@ -18,9 +21,13 @@ export const ResearchFlow = memo(function ResearchFlow({
     plan,
     isReplan,
     visualStepIndex,
+    groupsPerPage,
+    compact = false,
+    progressByClusterOnly = true,
 }: ResearchFlowProps) {
     const currentResults = status.results_count ?? status.evidence_count ?? 0
     const [latchedResults, setLatchedResults] = useState(0)
+    const [isMobileViewport, setIsMobileViewport] = useState(false)
 
     // Latch the results count to prevent flickering
     useEffect(() => {
@@ -29,8 +36,15 @@ export const ResearchFlow = memo(function ResearchFlow({
         }
     }, [currentResults, latchedResults])
 
-    const STEPS_PER_GROUP = 5 // User requested 5 steps per cluster
-    const GROUPS_PER_PAGE = 4 // User requested 4 visible clusters
+    useEffect(() => {
+        const checkViewport = () => setIsMobileViewport(window.innerWidth < 768)
+        checkViewport()
+        window.addEventListener("resize", checkViewport)
+        return () => window.removeEventListener("resize", checkViewport)
+    }, [])
+
+    const STEPS_PER_GROUP = 2 // 2 steps per cluster → more clusters from a short plan
+    const GROUPS_PER_PAGE = groupsPerPage ?? (isMobileViewport ? 3 : 4)
 
     // Grouping logic: Chunk the plan into groups of STEPS_PER_GROUP
     const groups = useMemo(() => {
@@ -49,15 +63,6 @@ export const ResearchFlow = memo(function ResearchFlow({
         Math.floor(Math.max(0, activeGroupIndex) / GROUPS_PER_PAGE),
         [activeGroupIndex, GROUPS_PER_PAGE])
 
-    const config = useMemo(() => ({
-        circleSize: 14,
-        barWidth: 4
-    }), [])
-
-    const barLeft = useMemo(() =>
-        (config.circleSize / 2) - (config.barWidth / 2),
-        [config.circleSize, config.barWidth])
-
     const startGroup = useMemo(() =>
         pageIndex * GROUPS_PER_PAGE,
         [pageIndex, GROUPS_PER_PAGE])
@@ -66,13 +71,8 @@ export const ResearchFlow = memo(function ResearchFlow({
         groups.slice(startGroup, startGroup + GROUPS_PER_PAGE),
         [groups, startGroup, GROUPS_PER_PAGE])
 
-    const progressHeight = useMemo(() => {
-        if (visibleGroups.length <= 1) return "0%"
-        // How many groups are fully or partially completed in the current page
-        const groupInPage = Math.max(0, activeGroupIndex - startGroup)
-        return `${Math.min(100, (groupInPage / (visibleGroups.length - 1)) * 100)}%`
-    }, [activeGroupIndex, startGroup, visibleGroups.length])
-
+    const activeGroupInPage = Math.max(0, activeGroupIndex - startGroup)
+    const subStepProgress = Math.min(1, Math.max(0, ((visualStepIndex % STEPS_PER_GROUP) + 1) / STEPS_PER_GROUP))
 
     // Adaptive "Plug and Play" Structure
     return (
@@ -82,20 +82,20 @@ export const ResearchFlow = memo(function ResearchFlow({
             exit={{ opacity: 0, height: 0 }}
             className="mt-4 overflow-hidden"
         >
-            <div className="p-4 md:p-6 rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm">
+            <div className="p-4 md:p-5 rounded-2xl border border-border/60 bg-background/95 shadow-soft">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-accent/10 text-accent">
-                            <Sparkles className={cn("w-4 h-4", status.phase !== 'research_reflection' && "animate-pulse")} />
+                <div className="flex items-center justify-between gap-3 mb-5">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="p-2 rounded-md bg-muted text-accent border border-border/60">
+                            <ListTodo className="w-4 h-4" />
                         </div>
-                        <h3 className="text-sm font-medium text-foreground/90 font-sans">
+                        <h3 className="text-sm font-semibold tracking-tight text-foreground truncate">
                             {isReplan ? 'Refinando plan...' : 'Plan de investigación'}
                         </h3>
                     </div>
                     {latchedResults > 0 && (
-                        <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-accent px-2 py-1 rounded bg-accent/10 border border-accent/20">
+                        <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] font-semibold text-accent px-2 py-1 rounded-md bg-accent/10 border border-accent/20">
                                 {latchedResults} hallazgos
                             </span>
                         </div>
@@ -112,38 +112,21 @@ export const ResearchFlow = memo(function ResearchFlow({
                     </div>
                 )}
 
-                <div className="relative ml-2">
-                    {/* Background Track - shows where the research will go */}
-                    <div
-                        className="absolute top-2 bottom-2 rounded-full"
-                        style={{
-                            left: `${barLeft}px`,
-                            width: `${config.barWidth}px`,
-                            backgroundColor: 'hsla(39.5, 23.5%, 68.2%, 0.2)'
-                        }}
-                    />
-
-                    {/* Filling Progress Bar - shows how much is done */}
-                    <motion.div
-                        className="absolute top-2 rounded-full origin-top"
-                        style={{
-                            left: `${barLeft}px`,
-                            width: `${config.barWidth}px`,
-                            backgroundColor: 'hsl(34.9, 71.7%, 76.5%)'
-                        }}
-                        initial={{ height: 0 }}
-                        animate={{
-                            height: progressHeight
-                        }}
-                        transition={{ duration: 0.8, ease: "easeInOut" }}
-                    />
-
-                    <div className="space-y-7 relative">
+                <div className="relative">
+                    <div className={cn("relative", compact ? "space-y-2" : "space-y-5")}>
                         {visibleGroups.map((groupSteps, index) => {
                             const absoluteGroupIndex = startGroup + index
                             const isCompleted = absoluteGroupIndex < activeGroupIndex
                             const isActive = absoluteGroupIndex === activeGroupIndex && status.phase !== 'research_reflection'
                             const isPending = !isCompleted && !isActive
+                            const hasConnector = index < visibleGroups.length - 1
+                            const connectorFill = progressByClusterOnly
+                                ? (index < activeGroupInPage ? 1 : 0)
+                                : index < activeGroupInPage
+                                    ? 1
+                                    : index === activeGroupInPage
+                                        ? subStepProgress
+                                        : 0
 
                             const subStepIndex = visualStepIndex % STEPS_PER_GROUP
                             const displayStepIndex = Math.min(1, subStepIndex)
@@ -154,48 +137,68 @@ export const ResearchFlow = memo(function ResearchFlow({
                             return (
                                 <div
                                     key={absoluteGroupIndex}
-                                    className="flex items-start gap-4 md:gap-6 transition-all duration-500 min-h-[1.5rem]"
+                                    className={cn(
+                                        "flex items-start gap-3 md:gap-4 transition-all duration-300 relative",
+                                        compact ? "min-h-[1.85rem]" : "min-h-[2.4rem]"
+                                    )}
                                 >
-                                    <div
-                                        className="relative z-10 flex items-center justify-center my-auto shrink-0"
-                                        style={{ width: `${config.circleSize}px`, height: `${config.circleSize}px` }}
-                                    >
+                                    <div className="relative flex w-4 justify-center shrink-0 mt-0.5">
                                         <div className={cn(
-                                            "w-full h-full rounded-full transition-all duration-700 bg-card border",
+                                            "h-3.5 w-3.5 rounded-full transition-all duration-500 bg-background border-2",
                                             isCompleted
                                                 ? "border-accent bg-accent"
                                                 : isActive
-                                                    ? "border-accent scale-110"
-                                                    : "border-border"
+                                                    ? "border-accent scale-105"
+                                                    : "border-border/70"
                                         )}
                                             style={isCompleted ? {
-                                                boxShadow: '0 0 14px 0 hsla(34.9, 71.7%, 76.5%, 0.5), 0 0 4px 0 hsla(34.9, 71.7%, 76.5%, 0.3)',
-                                                backgroundColor: 'hsl(34.9, 71.7%, 76.5%)',
-                                                borderColor: 'hsl(34.9, 71.7%, 76.5%)'
+                                                boxShadow: '0 0 8px hsl(var(--accent) / 0.25)',
+                                                backgroundColor: 'hsl(var(--accent) / 0.95)',
+                                                borderColor: 'hsl(var(--accent) / 0.95)'
                                             } : isActive ? {
-                                                boxShadow: '0 0 15px var(--accent-shadow, rgba(59,130,246,0.2))'
+                                                boxShadow: '0 0 8px hsl(var(--accent) / 0.22)'
                                             } : {}}
                                         />
+
+                                        {hasConnector && (
+                                            <div className={cn(
+                                                "absolute left-1/2 -translate-x-1/2 w-[2px] rounded-full bg-border/60 overflow-hidden",
+                                                compact ? "top-[12px] h-[32px]" : "top-[15px] h-[34px]"
+                                            )}>
+                                                <motion.div
+                                                    className="w-full rounded-full bg-accent origin-top"
+                                                    initial={{ height: 0 }}
+                                                    animate={{ height: `${connectorFill * 100}%` }}
+                                                    transition={{ duration: 0.35, ease: "easeOut" }}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className={cn(
-                                        "flex-1 min-w-0 my-auto",
+                                        "flex-1 min-w-0",
                                         isCompleted ? "transition-opacity duration-500" : "",
                                         isPending ? "opacity-30" : "opacity-100"
                                     )}>
                                         <div className="flex flex-col gap-1">
                                             <span
                                                 key={`${absoluteGroupIndex}-${displayText}`}
+                                                title={displayText}
                                                 className={cn(
-                                                    "text-sm transition-colors duration-300 font-sans leading-snug block",
+                                                    "text-[12.5px] md:text-sm transition-colors duration-300 leading-snug block overflow-hidden pr-1",
                                                     isActive ? "text-foreground font-semibold" :
                                                         isCompleted ? "text-muted-foreground" : "text-muted-foreground/60"
                                                 )}
+                                                style={{
+                                                    display: '-webkit-box',
+                                                    WebkitLineClamp: 2,
+                                                    WebkitBoxOrient: 'vertical',
+                                                }}
                                             >
                                                 {displayText}
                                             </span>
                                             {isActive && (
-                                                <div className="flex items-center gap-1.5 text-[10px] text-accent font-bold uppercase tracking-tight animate-in slide-in-from-top-1 fade-in duration-300">
+                                                <div className="flex items-center gap-1.5 text-[10px] text-accent font-semibold uppercase tracking-tight animate-in slide-in-from-top-1 fade-in duration-300">
                                                     <Loader2 className="w-3 h-3 animate-spin" />
                                                     <span>Procesando {subStepIndex + 1}/{STEPS_PER_GROUP}...</span>
                                                 </div>
@@ -209,7 +212,7 @@ export const ResearchFlow = memo(function ResearchFlow({
                 </div>
 
                 {groups.length > GROUPS_PER_PAGE && (
-                    <div className="mt-6 text-[10px] text-muted-foreground/50 pl-8 font-medium border-t border-border/30 pt-4">
+                    <div className="mt-4 text-[10px] text-muted-foreground/60 pl-7 font-medium border-t border-border/40 pt-3">
                         Mostrando grupos {startGroup + 1}-{Math.min(startGroup + GROUPS_PER_PAGE, groups.length)} de {groups.length}
                     </div>
                 )}

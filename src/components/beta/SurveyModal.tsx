@@ -161,7 +161,7 @@ export function SurveyModal() {
         <Dialog open={surveyModalOpen} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle className="text-xl font-display">
+                    <DialogTitle className="text-xl">
                         {isSuccess ? '¡Gracias por tu feedback!' : 'Encuesta de Satisfacción'}
                     </DialogTitle>
                     <DialogDescription>
@@ -199,10 +199,10 @@ export function SurveyModal() {
                                 <div
                                     key={idx}
                                     className={`w-2.5 h-2.5 rounded-full transition-colors ${idx === currentIndex
-                                            ? 'bg-accent'
-                                            : idx < currentIndex
-                                                ? 'bg-accent/50'
-                                                : 'bg-muted-foreground/30'
+                                        ? 'bg-accent'
+                                        : idx < currentIndex
+                                            ? 'bg-accent/50'
+                                            : 'bg-muted-foreground/30'
                                         }`}
                                 />
                             ))}

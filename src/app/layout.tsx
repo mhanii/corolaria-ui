@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/Sidebar";
 import { Inter, Crimson_Pro } from "next/font/google";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
@@ -15,14 +14,13 @@ export const metadata: Metadata = {
   },
 };
 
-import { Header } from "@/components/layout/Header";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/context/AuthContext";
 import { SidebarProvider } from "@/context/SidebarContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { BetaProvider } from "@/context/BetaContext";
 import { OnboardingProvider } from "@/context/OnboardingContext";
-import { MainContent } from "@/components/layout/MainContent";
+import { AppShell } from "@/components/layout/AppShell";
 import { SurveyModal } from "@/components/beta";
 import { ChatTour, SearchTour } from "@/components/onboarding";
 
@@ -39,15 +37,7 @@ export default function RootLayout({
             <BetaProvider>
               <OnboardingProvider>
                 <SidebarProvider>
-                  <div className="flex min-h-screen">
-                    <Sidebar />
-                    <MainContent>
-                      <Header />
-                      <main className="flex-1 overflow-y-auto bg-muted/10 pt-16">
-                        {children}
-                      </main>
-                    </MainContent>
-                  </div>
+                  <AppShell>{children}</AppShell>
                   <Toaster />
                   {/* Global Beta Modals */}
                   <SurveyModal />

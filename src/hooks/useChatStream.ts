@@ -179,7 +179,7 @@ export function useChatStream({
                         const isCompletedTool = status.phase === 'tool_end';
                         const isErrorAction = status.phase === 'tool_error';
 
-                        if ((isCompletedTool || isErrorAction) && status.tool !== 'create_legal_document') {
+                        if ((isCompletedTool || isErrorAction) && !(isCompletedTool && status.tool === 'create_legal_document')) {
                             flushAccumulatedText();
                             setMessages(prev => {
                                 const lastMessages = prev.slice(-5);

@@ -38,7 +38,7 @@ export default function PdfRenderer({ url, scale, onLoadSuccess }: PdfRendererPr
                     <p>Error al cargar PDF</p>
                 </div>
             }
-            className="flex flex-col gap-6"
+            className="inline-flex flex-col gap-6"
         >
             {Array.from(new Array(numPages), (el, index) => (
                 <Page
@@ -47,7 +47,7 @@ export default function PdfRenderer({ url, scale, onLoadSuccess }: PdfRendererPr
                     scale={scale}
                     renderTextLayer={true}
                     renderAnnotationLayer={false}
-                    className="shadow-md border border-border/10 bg-white"
+                    className="inline-block shadow-md border border-border/10 bg-white"
                 />
             ))}
         </Document>

@@ -18,11 +18,11 @@ export function MainContent({ children }: MainContentProps) {
     return (
         <div
             className={cn(
-                "flex-1 flex flex-col min-h-screen overflow-hidden",
+                "flex-1 flex flex-col min-h-app overflow-hidden",
                 "transition-[margin] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]",
                 "ml-0",
                 // On desktop, adjust margin based on sidebar collapse state
-                isCollapsed ? "lg:ml-16" : "lg:ml-72"
+                isCollapsed ? "lg:ml-16" : "lg:ml-80"
             )}
         >
             {children}

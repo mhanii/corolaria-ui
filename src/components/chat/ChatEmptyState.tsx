@@ -21,7 +21,7 @@ export const ChatEmptyState = forwardRef<ChatInputHandle, ChatEmptyStateProps>(
             <div className="flex-1 flex flex-col items-center justify-center w-full pb-20">
                 <div className="w-full space-y-8 px-4 md:px-6 flex flex-col items-center">
                     <div className="text-center space-y-6 mb-8">
-                        <h1 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient bg-300% leading-tight px-4">
+                        <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent animate-gradient bg-300% leading-tight px-4">
                             ¿En qué puedo ayudarte hoy?
                         </h1>
                     </div>

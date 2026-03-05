@@ -159,7 +159,7 @@ export const SearchResults = memo(function SearchResults({ results, loading = fa
                         </CardHeader>
                         <CardContent>
                             <div className="relative">
-                                <p className="text-sm text-foreground/80 leading-relaxed font-mono whitespace-pre-wrap line-clamp-3">
+                                <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap line-clamp-3">
                                     {result.article_text}
                                 </p>
                                 {/* Gradient fade overlay */}

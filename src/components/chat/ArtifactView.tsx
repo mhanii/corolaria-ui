@@ -34,6 +34,7 @@ interface ArtifactViewProps {
     onClose: () => void
     title?: string
     className?: string
+    isMobileFullscreen?: boolean
 }
 
 interface DocumentContent {
@@ -50,7 +51,22 @@ const pdfCache = {
     url: null as string | null
 }
 
-export function ArtifactView({ artifactId, isOpen, onClose, title, className }: ArtifactViewProps) {
+const getResponsiveDefaultScale = (viewportWidth: number) => {
+    const minPercent = 65
+    const maxPercent = 150
+    const scaledPercent = (viewportWidth / 418) * 65
+    const clampedPercent = Math.min(maxPercent, Math.max(minPercent, scaledPercent))
+    return clampedPercent / 100
+}
+
+export function ArtifactView({
+    artifactId,
+    isOpen,
+    onClose,
+    title,
+    className,
+    isMobileFullscreen = false,
+}: ArtifactViewProps) {
     const [content, setContent] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -117,6 +133,16 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
         if (title) setDocTitle(title)
     }, [title])
 
+    useEffect(() => {
+        const applyDefaultScale = () => {
+            setScale(getResponsiveDefaultScale(window.innerWidth))
+        }
+
+        applyDefaultScale()
+        window.addEventListener("resize", applyDefaultScale)
+        return () => window.removeEventListener("resize", applyDefaultScale)
+    }, [artifactId, isOpen])
+
     const handleCopy = useCallback(() => {
         if (content) {
             navigator.clipboard.writeText(content)
@@ -147,14 +173,24 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
     if (!artifactId) return null
 
     return (
-        <div className={cn("flex flex-col h-full bg-background border-l border-border", className)}>
-            <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 gap-4 h-14 shrink-0">
-                <div className="flex items-center gap-2 overflow-hidden flex-1">
-                    <div className="flex items-center bg-muted/50 p-1 rounded-lg border border-border/50 shrink-0">
+        <div className={cn(
+            "flex flex-col h-full bg-background border-l border-border",
+            isMobileFullscreen && "border-l-0",
+            className
+        )}>
+            <div className={cn(
+                "flex items-center justify-between px-3 py-2 border-b border-border/50 gap-2 h-14 shrink-0 bg-background/95 backdrop-blur-sm",
+                isMobileFullscreen && "sticky top-0 z-20 pt-safe"
+            )}>
+                <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
+                    <div className={cn(
+                        "flex items-center bg-muted/50 p-1 rounded-lg border border-border/50 shrink-0",
+                        isMobileFullscreen && "max-w-[170px] overflow-hidden"
+                    )}>
                         <button
                             onClick={() => setViewMode('preview')}
                             className={cn(
-                                "flex items-center justify-center h-8 px-3 rounded-md text-xs font-medium transition-all",
+                                "flex items-center justify-center h-8 px-2.5 md:px-3 rounded-md text-xs font-medium transition-all whitespace-nowrap",
                                 viewMode === 'preview'
                                     ? "bg-background text-foreground shadow-sm border border-border/50"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
@@ -167,39 +203,40 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                         <button
                             onClick={() => setViewMode('code')}
                             className={cn(
-                                "flex items-center justify-center h-8 px-3 rounded-md text-xs font-medium transition-all",
+                                "flex items-center justify-center h-8 px-2.5 md:px-3 rounded-md text-xs font-medium transition-all whitespace-nowrap",
                                 viewMode === 'code'
                                     ? "bg-background text-foreground shadow-sm border border-border/50"
                                     : "text-muted-foreground hover:text-foreground hover:bg-muted"
                             )}
                             title="Código Markdown"
                         >
-                            <Code className="w-3.5 h-3.5 mr-1.5" />
-                            Código
+                            <Code className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+                            <span className={cn(isMobileFullscreen && "hidden min-[390px]:inline")}>Código</span>
+                            <span className={cn("hidden", isMobileFullscreen && "inline min-[390px]:hidden")}>MD</span>
                         </button>
                     </div>
 
-                    <Separator orientation="vertical" className="h-6 mx-1" />
+                    <Separator orientation="vertical" className="h-6 mx-1 hidden min-[420px]:block" />
 
                     <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <div className="p-1 rounded bg-muted/30">
+                        <div className="p-1 rounded bg-muted/30 hidden min-[360px]:block">
                             <FileText className="w-4 h-4 text-muted-foreground" />
                         </div>
                         <h2 className="text-sm font-medium truncate" title={docTitle}>
                             {docTitle || "Documento"}
                         </h2>
-                        <span className="text-xs text-muted-foreground shrink-0 opacity-50">· {viewMode === 'preview' ? 'Vista previa' : 'Código'}</span>
+                        <span className="text-xs text-muted-foreground shrink-0 opacity-50 hidden md:inline">· {viewMode === 'preview' ? 'Vista previa' : 'Código'}</span>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0">
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={handleCopy} title="Copiar contenido">
+                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0" onClick={handleCopy} title="Copiar contenido">
                         <Copy className="w-4 h-4 text-muted-foreground" />
                     </Button>
 
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="Descargar">
+                            <Button variant="ghost" size="sm" className="h-9 w-9 p-0" title="Descargar">
                                 <Download className="w-4 h-4 text-muted-foreground" />
                             </Button>
                         </DropdownMenuTrigger>
@@ -219,8 +256,8 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                         </DropdownMenuContent>
                     </DropdownMenu>
 
-                    <Separator orientation="vertical" className="h-6 mx-1" />
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive" onClick={onClose} title="Cerrar">
+                    <Separator orientation="vertical" className="h-6 mx-1 hidden min-[360px]:block" />
+                    <Button variant="ghost" size="sm" className="h-9 w-9 p-0 hover:bg-destructive/10 hover:text-destructive" onClick={onClose} title={isMobileFullscreen ? "Volver al chat" : "Cerrar"}>
                         <X className="w-4 h-4" />
                     </Button>
                 </div>
@@ -239,12 +276,13 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                 ) : (
                     <div className="h-full flex flex-col">
                         {viewMode === 'preview' && pdfUrl && (
-                            <div className="flex items-center justify-center p-2 gap-2 border-b border-border/5 bg-background/50 backdrop-blur-sm z-10">
+                            <div className="flex items-center justify-center p-2 gap-1.5 md:gap-2 border-b border-border/5 bg-background/50 backdrop-blur-sm z-10 sticky top-0">
                                 <Button
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setScale(prev => Math.max(prev - 0.1, 0.5))}
                                     title="Reducir"
+                                    className="h-9 w-9 p-0"
                                 >
                                     <ZoomOut className="w-4 h-4" />
                                 </Button>
@@ -258,33 +296,39 @@ export function ArtifactView({ artifactId, isOpen, onClose, title, className }: 
                                     size="sm"
                                     onClick={() => setScale(prev => Math.min(prev + 0.1, 2.0))}
                                     title="Ampliar"
+                                    className="h-9 w-9 p-0"
                                 >
                                     <ZoomIn className="w-4 h-4" />
                                 </Button>
 
-                                <Separator orientation="vertical" className="h-4 mx-2" />
+                                <Separator orientation="vertical" className="h-4 mx-2 hidden min-[420px]:block" />
 
-                                <span className="text-xs text-muted-foreground font-medium text-center">
+                                <span className="text-xs text-muted-foreground font-medium text-center hidden min-[420px]:inline">
                                     {numPages || '-'} páginas
                                 </span>
                             </div>
                         )}
 
-                        <ScrollArea className="flex-1 w-full bg-muted/30">
-                            <div className="flex flex-col items-center py-8 px-4 min-h-full">
+                        <ScrollArea className="flex-1 w-full bg-muted/30 scroll-touch">
+                            <div className={cn(
+                                "flex flex-col items-start md:items-center px-4 min-h-full pb-safe",
+                                isMobileFullscreen ? "py-4" : "py-8"
+                            )}>
                                 {viewMode === 'preview' ? (
-                                    <div className="min-h-[500px]">
-                                        {pdfUrl ? (
-                                            <PdfRenderer
-                                                url={pdfUrl}
-                                                scale={scale}
-                                                onLoadSuccess={(num) => setNumPages(num)}
-                                            />
-                                        ) : (
-                                            <div className="flex items-center justify-center h-[500px] w-full">
-                                                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                                            </div>
-                                        )}
+                                    <div className={cn("min-h-[500px] w-full overflow-x-auto overflow-y-hidden scroll-touch", isMobileFullscreen && "w-full")}>
+                                        <div className="w-max min-w-full flex justify-center">
+                                            {pdfUrl ? (
+                                                <PdfRenderer
+                                                    url={pdfUrl}
+                                                    scale={scale}
+                                                    onLoadSuccess={(num) => setNumPages(num)}
+                                                />
+                                            ) : (
+                                                <div className="flex items-center justify-center h-[500px] w-full">
+                                                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 ) : (
                                     <div className="w-full max-w-5xl mx-auto">

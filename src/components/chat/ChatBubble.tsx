@@ -86,8 +86,8 @@ export const ChatBubble = memo(function ChatBubble({
                 className={cn(
                     "rounded-2xl px-4 py-3",
                     role === "user"
-                        ? "bg-accent text-accent-foreground font-medium shadow-soft text-lg"
-                        : "text-foreground"
+                        ? "bg-accent text-accent-foreground font-medium shadow-soft text-[clamp(0.86rem,2.2vw,1rem)]"
+                        : "text-foreground text-[clamp(0.86rem,2.2vw,1rem)]"
                 )}
             >
                 <div className="flex flex-col gap-4">
@@ -114,7 +114,7 @@ export const ChatBubble = memo(function ChatBubble({
             )}
 
             {role === "assistant" && isLast && (
-                <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 mt-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                     {testModeEnabled && messageIndex !== undefined && conversationId && (
                         <FeedbackButtons
                             messageIndex={messageIndex}
@@ -124,7 +124,7 @@ export const ChatBubble = memo(function ChatBubble({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-muted/50"
+                        className="h-8 w-8 lg:h-7 lg:w-7 text-muted-foreground hover:text-accent hover:bg-muted/50"
                         onClick={handleCopy}
                     >
                         <Copy className="h-3.5 w-3.5" />
@@ -133,11 +133,11 @@ export const ChatBubble = memo(function ChatBubble({
             )}
 
             {role === "user" && (
-                <div className="flex items-center gap-1 mt-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                <div className="flex items-center gap-1 mt-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity justify-end">
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-muted/50"
+                        className="h-8 w-8 lg:h-7 lg:w-7 text-muted-foreground hover:text-accent hover:bg-muted/50"
                         onClick={handleCopy}
                     >
                         <Copy className="h-3.5 w-3.5" />
@@ -145,7 +145,7 @@ export const ChatBubble = memo(function ChatBubble({
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-muted-foreground hover:text-accent hover:bg-muted/50"
+                        className="h-8 w-8 lg:h-7 lg:w-7 text-muted-foreground hover:text-accent hover:bg-muted/50"
                         onClick={handleEdit}
                     >
                         <Edit className="h-3.5 w-3.5" />

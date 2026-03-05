@@ -58,7 +58,7 @@ export function ArticleDetailsModal({ article, isOpen, onOpenChange, onArticleCh
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-[95vw] md:max-w-[80vw] h-[90vh] md:h-[85vh] flex flex-col p-3 md:p-6">
+            <DialogContent className="max-w-[96vw] md:max-w-[80vw] h-[92vh] md:h-[85vh] flex flex-col p-3 md:p-6">
                 <DialogHeader className="space-y-2">
                     {/* Badges - hidden on mobile for cleaner look */}
                     <div className="hidden md:flex items-center gap-2 mb-2 flex-wrap">
@@ -103,7 +103,7 @@ export function ArticleDetailsModal({ article, isOpen, onOpenChange, onArticleCh
                         )}
                     </div>
 
-                    <DialogTitle className="text-lg md:text-2xl font-display leading-tight">
+                    <DialogTitle className="text-lg md:text-2xl leading-tight">
                         {currentArticle.normativa_title} - {currentArticle.article_number}
                     </DialogTitle>
 
@@ -126,20 +126,20 @@ export function ArticleDetailsModal({ article, isOpen, onOpenChange, onArticleCh
                     </div>
                 )}
 
-                <div className="flex-1 overflow-auto mt-3 md:mt-4">
+                <div className="flex-1 overflow-auto scroll-touch mt-3 md:mt-4 pr-1">
                     {versionLoading ? (
                         <div className="flex items-center justify-center py-12">
                             <LogoLoader text="Cargando versión..." />
                         </div>
                     ) : (
-                        <p className="text-sm md:text-base leading-relaxed font-mono whitespace-pre-wrap">
+                        <p className="text-sm md:text-base leading-relaxed whitespace-pre-wrap">
                             {currentArticle.article_text}
                         </p>
                     )}
                 </div>
 
-                <div className="flex flex-col-reverse sm:flex-row sm:justify-between items-stretch sm:items-center gap-2 md:gap-3 mt-3 md:mt-4 pt-3 md:pt-4 border-t">
-                    <div className="flex gap-2">
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-between items-stretch sm:items-center gap-2 md:gap-3 mt-3 md:mt-4 pt-3 md:pt-4 border-t pb-safe">
+                    <div className="flex gap-2 flex-wrap">
                         {currentArticle.previous_version_id && (
                             <Button
                                 variant="outline"
@@ -168,7 +168,7 @@ export function ArticleDetailsModal({ article, isOpen, onOpenChange, onArticleCh
                         )}
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                         <Button
                             variant="outline"
                             size="sm"

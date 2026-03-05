@@ -22,11 +22,36 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
     const [isCollapsed, setIsCollapsed] = useState(false)
     const [refreshTrigger, setRefreshTrigger] = useState(0)
 
-    const toggle = useCallback(() => setIsOpen(prev => !prev), [])
-    const open = useCallback(() => setIsOpen(true), [])
+    const isMobileViewport = () => typeof window !== "undefined" && window.innerWidth < 1024
+
+    const toggle = useCallback(() => {
+        if (isMobileViewport()) {
+            setIsCollapsed(false)
+        }
+        setIsOpen(prev => !prev)
+    }, [])
+    const open = useCallback(() => {
+        if (isMobileViewport()) {
+            setIsCollapsed(false)
+        }
+        setIsOpen(true)
+    }, [])
     const close = useCallback(() => setIsOpen(false), [])
-    const toggleCollapse = useCallback(() => setIsCollapsed(prev => !prev), [])
-    const collapse = useCallback(() => setIsCollapsed(true), [])
+    const toggleCollapse = useCallback(() => {
+        if (isMobileViewport()) {
+            setIsCollapsed(false)
+            return
+        }
+        setIsCollapsed(prev => !prev)
+    }, [])
+    const collapse = useCallback(() => {
+        if (isMobileViewport()) {
+            setIsOpen(false)
+            setIsCollapsed(false)
+            return
+        }
+        setIsCollapsed(true)
+    }, [])
     const expand = useCallback(() => setIsCollapsed(false), [])
     const triggerRefresh = useCallback(() => setRefreshTrigger(prev => prev + 1), [])
 

@@ -33,6 +33,8 @@ export default function ChatWithIdPage() {
     const streamingAreaRef = useRef<StreamingAreaHandle>(null)
 
     const [dynamicMinHeight, setDynamicMinHeight] = useState<string | number>('auto')
+    const [isMobileViewport, setIsMobileViewport] = useState(false)
+    const scrollRestoreRef = useRef(0)
 
     // Artifact state
     const [viewArtifactId, setViewArtifactId] = useState<string | null>(null)
@@ -40,13 +42,25 @@ export default function ChatWithIdPage() {
     const [isArtifactViewOpen, setIsArtifactViewOpen] = useState(false)
 
     const openArtifact = useCallback((id: string, title: string) => {
+        if (isMobileViewport && scrollAreaRef.current) {
+            scrollRestoreRef.current = scrollAreaRef.current.scrollTop
+        }
         collapseSidebar()
         setViewArtifactId(id)
         setViewArtifactTitle(title)
         setIsArtifactViewOpen(true)
-    }, [collapseSidebar])
+    }, [collapseSidebar, isMobileViewport])
 
-    const handleCloseArtifact = useCallback(() => setIsArtifactViewOpen(false), [])
+    const handleCloseArtifact = useCallback(() => {
+        setIsArtifactViewOpen(false)
+        if (isMobileViewport && scrollAreaRef.current) {
+            requestAnimationFrame(() => {
+                if (scrollAreaRef.current) {
+                    scrollAreaRef.current.scrollTop = scrollRestoreRef.current
+                }
+            })
+        }
+    }, [isMobileViewport])
     const noop = useCallback(() => { }, [])
 
     const {
@@ -83,6 +97,13 @@ export default function ChatWithIdPage() {
             loadConversation(chatId)
         }
     }, [chatId, loadConversation])
+
+    useEffect(() => {
+        const updateViewport = () => setIsMobileViewport(window.innerWidth < 1024)
+        updateViewport()
+        window.addEventListener("resize", updateViewport)
+        return () => window.removeEventListener("resize", updateViewport)
+    }, [])
 
     useEffect(() => {
         if (!scrollRef.current) return;
@@ -123,7 +144,7 @@ export default function ChatWithIdPage() {
 
     if (isAuthLoading || isLoadingConversation) {
         return (
-            <div className="flex flex-col h-[calc(100vh-4rem)] items-center justify-center w-full">
+            <div className="flex flex-col h-app-frame items-center justify-center w-full">
                 <LogoLoader />
             </div>
         )
@@ -132,14 +153,15 @@ export default function ChatWithIdPage() {
     if (!isAuthenticated) return null
 
     return (
-        <div className="flex h-[calc(100vh-4rem)] overflow-hidden w-full">
+        <div className="flex h-app-frame overflow-hidden w-full">
             <div className={cn(
                 "flex flex-col h-full transition-all duration-300 ease-in-out",
-                isArtifactViewOpen ? "w-1/2 border-r border-border" : "w-full max-w-5xl mx-auto"
+                !isMobileViewport && isArtifactViewOpen ? "w-1/2 border-r border-border" : "w-full max-w-5xl mx-auto"
             )}>
-                <ChatTools messages={messages as any} onDelete={handleDeleteConversation} />
+                {/* Note: The user requested to visually remove the ChatTools bar (Export, Save, History, Delete) from the main UI.
+                    The functionality hooks remain available in `useChatStream` for future integration if needed. */}
 
-                <div ref={scrollAreaRef} className="flex-1 overflow-y-auto overscroll-contain">
+                <div ref={scrollAreaRef} className="flex-1 overflow-y-auto scroll-touch">
                     <div className="space-y-4 md:space-y-6 px-3 md:px-6 py-4 md:py-6 relative pb-10">
                         {insufficientTokens && (
                             <div className="flex items-center gap-2 p-4 rounded-lg bg-accent/10 border border-accent/20 text-accent">
@@ -234,7 +256,7 @@ export default function ChatWithIdPage() {
                     </div>
                 </div>
 
-                <div className="px-3 md:px-6 pb-4 md:pb-6 pt-2 mt-auto shrink-0 bg-background/95">
+                <div className="px-3 md:px-6 pb-safe md:pb-6 pt-2 mt-auto shrink-0 bg-background/95">
                     <ChatInput
                         ref={chatInputRef}
                         onSendMessage={handleSendMessage}
@@ -250,9 +272,12 @@ export default function ChatWithIdPage() {
                 isOpen={isArtifactViewOpen}
                 onClose={handleCloseArtifact}
                 title={viewArtifactTitle}
+                isMobileFullscreen={isMobileViewport}
                 className={cn(
-                    "w-1/2 transition-all duration-300 ease-in-out bg-background",
-                    !isArtifactViewOpen && "hidden w-0"
+                    "transition-all duration-300 ease-in-out bg-background",
+                    isMobileViewport
+                        ? (isArtifactViewOpen ? "fixed inset-0 z-[70] w-full" : "hidden")
+                        : (isArtifactViewOpen ? "w-1/2" : "hidden w-0")
                 )}
             />
         </div>

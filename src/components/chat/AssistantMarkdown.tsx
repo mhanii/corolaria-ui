@@ -8,12 +8,12 @@ import { CitationResponse } from "@/lib/api/types"
 import { createIdToCitationMap } from "@/lib/citationUtils"
 
 const MarkdownComponents: Components = {
-    p: ({ children, ...props }) => <p className="mb-4 last:mb-0 text-lg leading-relaxed" {...props}>{children}</p>,
-    li: ({ children, ...props }) => <li className="text-lg leading-relaxed pl-2" {...props}>{children}</li>,
-    h1: ({ children, ...props }) => <h1 className="text-4xl font-bold mb-4 mt-6" {...props}>{children}</h1>,
-    h2: ({ children, ...props }) => <h2 className="text-3xl font-bold mb-3 mt-5" {...props}>{children}</h2>,
-    h3: ({ children, ...props }) => <h3 className="text-2xl font-semibold mb-3 mt-4" {...props}>{children}</h3>,
-    h4: ({ children, ...props }) => <h4 className="text-xl font-semibold mb-2 mt-3" {...props}>{children}</h4>,
+    p: ({ children, ...props }) => <p className="mb-3 md:mb-4 last:mb-0 text-[clamp(0.86rem,2.2vw,1rem)] leading-relaxed" {...props}>{children}</p>,
+    li: ({ children, ...props }) => <li className="text-[clamp(0.86rem,2.2vw,1rem)] leading-relaxed pl-2" {...props}>{children}</li>,
+    h1: ({ children, ...props }) => <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-3 md:mb-4 mt-5 md:mt-6" {...props}>{children}</h1>,
+    h2: ({ children, ...props }) => <h2 className="text-xl md:text-2xl lg:text-3xl font-bold mb-2.5 md:mb-3 mt-4 md:mt-5" {...props}>{children}</h2>,
+    h3: ({ children, ...props }) => <h3 className="text-lg md:text-xl lg:text-2xl font-semibold mb-2.5 md:mb-3 mt-3.5 md:mt-4" {...props}>{children}</h3>,
+    h4: ({ children, ...props }) => <h4 className="text-base md:text-lg lg:text-xl font-semibold mb-2 mt-3" {...props}>{children}</h4>,
     td: ({ children, ...props }) => <td className="border border-border px-4 py-2" {...props}>{children}</td>,
     th: ({ children, ...props }) => <th className="border border-border bg-muted px-4 py-2 text-left font-semibold" {...props}>{children}</th>,
     blockquote: ({ children, ...props }) => <blockquote className="border-l-4 border-accent/40 pl-4 py-2 my-4 italic bg-muted/30 rounded-r" {...props}>{children}</blockquote>,
@@ -48,7 +48,12 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
 }: AssistantMarkdownProps) {
     const processedContent = useMemo(() => {
         if (!content) return '';
-        let text = content.replace(/<cite id=["']?(\d+)["']?>([\s\S]*?)<\/cite>/g, (match, id, text) => {
+
+        const normalizedContent = content.replace(/<cite key=["']?(\d+)["']?>([\s\S]*?)<\/cite>/g, (_, id, inner) => {
+            return `<cite id="${id}">${inner}</cite>`
+        })
+
+        let text = normalizedContent.replace(/<cite id=["']?(\d+)["']?>([\s\S]*?)<\/cite>/g, (match, id, text) => {
             return `[${text}](#citation-${id})`
         })
 

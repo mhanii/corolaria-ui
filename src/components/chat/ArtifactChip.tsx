@@ -11,7 +11,7 @@ export const ArtifactChip = memo(function ArtifactChip({ id, title, onClick }: A
     return (
         <div className="mt-3 mb-1 w-full">
             <div
-                className="flex text-left font-sans rounded-lg overflow-hidden border transition duration-300 w-full hover:bg-background/50 px-4 border-border/40 hover:border-border cursor-pointer group/artifact-block bg-card/50"
+                className="flex text-left font-sans rounded-lg overflow-hidden border transition duration-300 w-full hover:bg-background/50 px-4 border-border/50 dark:border-border/80 cursor-pointer group/artifact-block bg-card/50 dark:bg-muted/55 shadow-soft hover:shadow-medium"
                 role="button"
                 tabIndex={0}
                 aria-label="Preview contents"
@@ -21,7 +21,7 @@ export const ArtifactChip = memo(function ArtifactChip({ id, title, onClick }: A
                     <div className="flex flex-1 gap-4 min-w-0">
                         {/* Icon Container */}
                         <div className="flex items-center w-[60px] relative shrink-0">
-                            <div className="absolute top-0 left-0 flex flex-1 overflow-hidden w-[56px] h-[72px] rounded-xl border border-border/60 select-none scale-[1] group-hover/artifact-block:scale-[1.035] -rotate-[0.1rad] group-hover/artifact-block:-rotate-[0.065rad] duration-300 ease-out transition-transform backface-hidden will-change-transform bg-gradient-to-b from-background to-background/0 pt-4 items-start justify-center shadow-sm">
+                            <div className="absolute top-0 left-0 flex flex-1 overflow-hidden w-[56px] h-[72px] rounded-xl border border-border/70 select-none scale-[1] group-hover/artifact-block:scale-[1.035] -rotate-[0.1rad] group-hover/artifact-block:-rotate-[0.065rad] duration-300 ease-out transition-transform backface-hidden will-change-transform bg-gradient-to-b from-background to-background/0 dark:from-card/95 dark:to-card/30 pt-4 items-start justify-center shadow-soft">
                                 <FileText className="w-6 h-6 text-muted-foreground" />
                             </div>
                         </div>
@@ -40,7 +40,7 @@ export const ArtifactChip = memo(function ArtifactChip({ id, title, onClick }: A
                     {/* Action Button */}
                     <div className="flex min-w-0 items-center justify-center gap-2 shrink-0">
                         <button
-                            className="inline-flex items-center justify-center relative shrink-0 select-none font-medium border relative overflow-hidden transition duration-100 h-9 px-4 rounded-md min-w-[5rem] active:scale-[0.985] whitespace-nowrap text-sm bg-background hover:bg-muted text-foreground border-border shadow-sm z-10"
+                            className="inline-flex items-center justify-center relative shrink-0 select-none font-medium border relative overflow-hidden transition duration-100 h-9 px-4 rounded-md min-w-[5rem] active:scale-[0.985] whitespace-nowrap text-sm bg-background/90 dark:bg-card hover:bg-muted dark:hover:bg-muted/70 text-foreground border-border/70 shadow-soft z-10"
                             type="button"
                             aria-label="Descargar"
                             onClick={(e) => {

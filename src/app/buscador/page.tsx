@@ -46,7 +46,7 @@ export default function BuscadorPage() {
     // Show loading while checking auth
     if (isAuthLoading) {
         return (
-            <div className="flex flex-col h-[calc(100vh-4rem)] items-center justify-center">
+            <div className="flex flex-col h-app-frame items-center justify-center">
                 <LogoLoader />
             </div>
         )
@@ -58,7 +58,7 @@ export default function BuscadorPage() {
     }
 
     return (
-        <div className="h-full flex flex-col max-w-7xl mx-auto">
+        <div className="h-app-frame flex flex-col max-w-7xl mx-auto">
             <div className="space-y-4 mb-4 md:mb-6 p-3 md:p-6">
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                     <div className="flex-1 relative" data-tour-id="search-input">
@@ -127,7 +127,7 @@ export default function BuscadorPage() {
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto px-3 md:px-6 pb-4 md:pb-6">
+            <div className="flex-1 overflow-auto scroll-touch px-3 md:px-6 pb-safe md:pb-6">
                 {hasSearched ? (
                     <SearchResults
                         results={results?.results || []}
@@ -147,4 +147,3 @@ export default function BuscadorPage() {
         </div>
     )
 }
-
