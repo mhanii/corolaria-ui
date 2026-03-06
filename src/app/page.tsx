@@ -3,15 +3,11 @@ import Link from "next/link";
 import { Search, FileText, Scale, Shield, Sparkles, Brain } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { DeepResearchDemo } from "@/components/home/DeepResearchDemo";
+import { DocumentGenerationDemo } from "@/components/home/DocumentGenerationDemo";
+import { LawyerModeDemo } from "@/components/home/LawyerModeDemo";
 
 const CAPABILITIES = [
-  {
-    title: "Buscador legal",
-    description:
-      "Localiza normativa, jurisprudencia y doctrina con una búsqueda semántica enfocada en intención jurídica. Diseñado para acelerar la investigación sin perder precisión.",
-    mediaLabel: "Tutorial rápido del buscador (GIF próximamente)",
-    icon: Search,
-  },
+
   {
     title: "Generación de documentos",
     description:
@@ -32,7 +28,13 @@ const CAPABILITIES = [
       "Asistencia orientada al flujo real de trabajo legal: contexto, trazabilidad y redacción argumentativa con foco en utilidad práctica para despachos y asesorías.",
     mediaLabel: "Demostración de modo abogado (GIF próximamente)",
     icon: Brain,
-  },
+  }, {
+    title: "Buscador legal",
+    description:
+      "Localiza normativa, jurisprudencia y doctrina con una búsqueda semántica enfocada en intención jurídica. Diseñado para acelerar la investigación sin perder precisión.",
+    mediaLabel: "Tutorial rápido del buscador (GIF próximamente)",
+    icon: Search,
+  }
 ] as const;
 
 export default function Home() {
@@ -117,6 +119,10 @@ export default function Home() {
                   <div className={(mediaOnRight ? "order-2" : "order-2 md:order-1") + " self-center"}>
                     {item.title === "Búsqueda profunda y fundamentada" ? (
                       <DeepResearchDemo />
+                    ) : item.title === "Generación de documentos" ? (
+                      <DocumentGenerationDemo />
+                    ) : item.title === "Modo abogado" ? (
+                      <LawyerModeDemo />
                     ) : (
                       <div className="media-placeholder media-placeholder--card" role="img" aria-label={item.mediaLabel}>
                         <div className="media-placeholder__label">GIF tutorial próximamente</div>
