@@ -54,7 +54,7 @@ export default function Home() {
 
                 <div className="space-y-4">
                   <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold font-display tracking-tight leading-tight bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-                    Bienvenido a Athen
+                    Bienvenid@ a Athen
                   </h1>
                   <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto lg:mx-0 leading-relaxed">
                     Plataforma de IA jurídica para investigación, redacción y estrategia legal.
