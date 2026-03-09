@@ -32,6 +32,10 @@ export function generatePdfDocument(content: string): jsPDF {
         return false
     }
 
+    // Pre-process content to handle single newlines if requested, 
+    // but here we follow standard markdown or the user's preference for breaks.
+    // For simplicity in this manual parser, we'll improve the line-by-line handling.
+
     lines.forEach(line => {
         const trimmed = line.trim()
 
@@ -41,7 +45,7 @@ export function generatePdfDocument(content: string): jsPDF {
             const text = trimmed.substring(2)
             const splitText = doc.splitTextToSize(text, contentWidth)
             checkPageBreak(splitText.length * 10 + 5)
-            doc.text(splitText, margin, y + 8) // adjustment for baseline
+            doc.text(splitText, margin, y + 8)
             y += (splitText.length * 10) + 5
         } else if (trimmed.startsWith('## ')) {
             doc.setFont("times", "bold")
@@ -62,7 +66,8 @@ export function generatePdfDocument(content: string): jsPDF {
         } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
             doc.setFont("times", "normal")
             doc.setFontSize(11)
-            const text = "• " + trimmed.substring(2)
+            // Strip markdown formatting for PDF export as jsPDF manual text doesn't support it easily
+            const text = "• " + trimmed.substring(2).replace(/[\*_~]/g, '')
             const splitText = doc.splitTextToSize(text, contentWidth - 5)
             checkPageBreak(splitText.length * lineHeight)
             doc.text(splitText, margin + 5, y + 4)
@@ -72,8 +77,9 @@ export function generatePdfDocument(content: string): jsPDF {
         } else {
             doc.setFont("times", "normal")
             doc.setFontSize(11)
-            // Simple paragraph handling
-            const splitText = doc.splitTextToSize(trimmed, contentWidth)
+            // Strip basic markdown formatting
+            const cleanText = line.replace(/[\*_~]/g, '')
+            const splitText = doc.splitTextToSize(cleanText, contentWidth)
             checkPageBreak(splitText.length * lineHeight)
             doc.text(splitText, margin, y + 4)
             y += (splitText.length * lineHeight)
@@ -90,42 +96,79 @@ export async function generateDocxBlob(content: string): Promise<Blob> {
     const docxChildren: any[] = []
     const docxLines = content.split('\n')
 
+    /**
+     * Helper to parse inline markdown (bold/italic) into TextRuns
+     */
+    const parseInline = (text: string): TextRun[] => {
+        const runs: TextRun[] = []
+        let lastIndex = 0
+
+        // Match bold (** or __) or italic (* or _)
+        const regex = /(\*\*|__|text|\*|_)(.*?)\1/g
+        let match
+
+        while ((match = regex.exec(text)) !== null) {
+            // Add text before match
+            if (match.index > lastIndex) {
+                runs.push(new TextRun(text.substring(lastIndex, match.index)))
+            }
+
+            const marker = match[1]
+            const content = match[2]
+
+            if (marker === '**' || marker === '__') {
+                runs.push(new TextRun({ text: content, bold: true }))
+            } else {
+                runs.push(new TextRun({ text: content, italic: true }))
+            }
+
+            lastIndex = regex.lastIndex
+        }
+
+        // Add remaining text
+        if (lastIndex < text.length) {
+            runs.push(new TextRun(text.substring(lastIndex)))
+        }
+
+        return runs.length > 0 ? runs : [new TextRun(text)]
+    }
+
     docxLines.forEach(line => {
         const trimmed = line.trim()
         if (trimmed.startsWith('# ')) {
             docxChildren.push(new Paragraph({
-                text: trimmed.substring(2),
+                children: parseInline(trimmed.substring(2)),
                 heading: "Heading1",
                 spacing: { before: 240, after: 120 }
             }))
         } else if (trimmed.startsWith('## ')) {
             docxChildren.push(new Paragraph({
-                text: trimmed.substring(3),
+                children: parseInline(trimmed.substring(3)),
                 heading: "Heading2",
                 spacing: { before: 240, after: 120 }
             }))
         } else if (trimmed.startsWith('### ')) {
             docxChildren.push(new Paragraph({
-                text: trimmed.substring(4),
+                children: parseInline(trimmed.substring(4)),
                 heading: "Heading3",
                 spacing: { before: 240, after: 120 }
             }))
         } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
             docxChildren.push(new Paragraph({
-                children: [new TextRun(trimmed.substring(2))],
+                children: parseInline(trimmed.substring(2)),
                 bullet: { level: 0 }
             }))
         } else if (/^\d+\./.test(trimmed)) {
             const text = trimmed.replace(/^\d+\.\s*/, '')
             docxChildren.push(new Paragraph({
-                children: [new TextRun(text)],
+                children: parseInline(text),
                 numbering: { reference: "default-numbering", level: 0 }
             }))
         } else if (trimmed === '') {
             docxChildren.push(new Paragraph({ text: "" }))
         } else {
             docxChildren.push(new Paragraph({
-                children: [new TextRun(line)],
+                children: parseInline(line),
                 spacing: { after: 120 }
             }))
         }

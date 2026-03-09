@@ -16,17 +16,7 @@ import { Loader2, AlertCircle, X, Copy, Download, Code, Eye, FileText, FileType,
 import { cn } from "@/lib/utils"
 import { saveAs } from "file-saver"
 import { generatePdfDocument, generateDocxBlob } from "@/lib/markdownExport"
-import dynamic from "next/dynamic"
-
-// Dynamically import PdfRenderer to avoid SSR issues
-const PdfRenderer = dynamic(() => import("./PdfRenderer"), {
-    ssr: false,
-    loading: () => (
-        <div className="flex items-center justify-center h-[500px] w-full">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-    )
-})
+import { AssistantMarkdown } from "./AssistantMarkdown"
 
 interface ArtifactViewProps {
     artifactId: string | null
@@ -51,13 +41,7 @@ const pdfCache = {
     url: null as string | null
 }
 
-const getResponsiveDefaultScale = (viewportWidth: number) => {
-    const minPercent = 65
-    const maxPercent = 150
-    const scaledPercent = (viewportWidth / 418) * 65
-    const clampedPercent = Math.min(maxPercent, Math.max(minPercent, scaledPercent))
-    return clampedPercent / 100
-}
+// Removed getResponsiveDefaultScale as we are no longer using PDF renderer
 
 export function ArtifactView({
     artifactId,
@@ -72,10 +56,6 @@ export function ArtifactView({
     const [error, setError] = useState<string | null>(null)
     const [docTitle, setDocTitle] = useState<string>(title || "")
     const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview')
-
-    const [pdfUrl, setPdfUrl] = useState<string | null>(null)
-    const [numPages, setNumPages] = useState<number>(0)
-    const [scale, setScale] = useState<number>(1.5)
 
     const loadDocument = useCallback(async (id: string) => {
         try {
@@ -93,36 +73,7 @@ export function ArtifactView({
         }
     }, [title])
 
-    // Generate PDF Blob URL when content changes (debounced)
-    useEffect(() => {
-        if (!content) return
-
-        if (pdfCache.content === content && pdfCache.url) {
-            setPdfUrl(pdfCache.url)
-            return
-        }
-
-        const timer = setTimeout(() => {
-            try {
-                const doc = generatePdfDocument(content)
-                const blob = doc.output('blob')
-                const url = URL.createObjectURL(blob)
-
-                if (pdfCache.url && pdfCache.url !== url) {
-                    URL.revokeObjectURL(pdfCache.url)
-                }
-
-                pdfCache.content = content
-                pdfCache.url = url
-                setPdfUrl(url)
-            } catch (e) {
-                console.error("Failed to generate PDF preview", e)
-            }
-        }, 500)
-
-        return () => clearTimeout(timer)
-    }, [content])
-
+    // Removed PDF generation effect and scale effect
     useEffect(() => {
         if (artifactId) {
             loadDocument(artifactId)
@@ -132,16 +83,6 @@ export function ArtifactView({
     useEffect(() => {
         if (title) setDocTitle(title)
     }, [title])
-
-    useEffect(() => {
-        const applyDefaultScale = () => {
-            setScale(getResponsiveDefaultScale(window.innerWidth))
-        }
-
-        applyDefaultScale()
-        window.addEventListener("resize", applyDefaultScale)
-        return () => window.removeEventListener("resize", applyDefaultScale)
-    }, [artifactId, isOpen])
 
     const handleCopy = useCallback(() => {
         if (content) {
@@ -275,39 +216,7 @@ export function ArtifactView({
                     </div>
                 ) : (
                     <div className="h-full flex flex-col">
-                        {viewMode === 'preview' && pdfUrl && (
-                            <div className="flex items-center justify-center p-2 gap-1.5 md:gap-2 border-b border-border/5 bg-background/50 backdrop-blur-sm z-10 sticky top-0">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setScale(prev => Math.max(prev - 0.1, 0.5))}
-                                    title="Reducir"
-                                    className="h-9 w-9 p-0"
-                                >
-                                    <ZoomOut className="w-4 h-4" />
-                                </Button>
-
-                                <span className="text-xs text-muted-foreground font-medium min-w-[40px] text-center">
-                                    {Math.round(scale * 100)}%
-                                </span>
-
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setScale(prev => Math.min(prev + 0.1, 2.0))}
-                                    title="Ampliar"
-                                    className="h-9 w-9 p-0"
-                                >
-                                    <ZoomIn className="w-4 h-4" />
-                                </Button>
-
-                                <Separator orientation="vertical" className="h-4 mx-2 hidden min-[420px]:block" />
-
-                                <span className="text-xs text-muted-foreground font-medium text-center hidden min-[420px]:inline">
-                                    {numPages || '-'} páginas
-                                </span>
-                            </div>
-                        )}
+                        {/* Removed PDF controls */}
 
                         <ScrollArea className="flex-1 w-full bg-muted/30 scroll-touch">
                             <div className={cn(
@@ -315,20 +224,12 @@ export function ArtifactView({
                                 isMobileFullscreen ? "py-4" : "py-8"
                             )}>
                                 {viewMode === 'preview' ? (
-                                    <div className={cn("min-h-[500px] w-full overflow-x-auto overflow-y-hidden scroll-touch", isMobileFullscreen && "w-full")}>
-                                        <div className="w-max min-w-full flex justify-center">
-                                            {pdfUrl ? (
-                                                <PdfRenderer
-                                                    url={pdfUrl}
-                                                    scale={scale}
-                                                    onLoadSuccess={(num) => setNumPages(num)}
-                                                />
-                                            ) : (
-                                                <div className="flex items-center justify-center h-[500px] w-full">
-                                                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                                                </div>
-                                            )}
-                                        </div>
+                                    <div className="w-full max-w-4xl mx-auto bg-background p-8 md:p-12 shadow-sm rounded-xl border border-border/50 min-h-[500px]">
+                                        <AssistantMarkdown
+                                            content={content || ""}
+                                            citations={[]}
+                                            isStreaming={false}
+                                        />
                                     </div>
                                 ) : (
                                     <div className="w-full max-w-5xl mx-auto">

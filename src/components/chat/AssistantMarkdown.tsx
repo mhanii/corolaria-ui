@@ -3,6 +3,7 @@
 import { memo, useMemo } from "react"
 import ReactMarkdown, { Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import rehypeRaw from 'rehype-raw'
 import { CitationResponse } from "@/lib/api/types"
 import { createIdToCitationMap } from "@/lib/citationUtils"
@@ -32,7 +33,7 @@ const MarkdownComponents: Components = {
     table: ({ children, ...props }) => <div className="overflow-x-auto my-4"><table className="w-full border-collapse" {...props}>{children}</table></div>,
 }
 
-const remarkPluginsList = [remarkGfm]
+const remarkPluginsList = [remarkGfm, remarkBreaks]
 const rehypePluginsList = [rehypeRaw]
 
 interface AssistantMarkdownProps {
