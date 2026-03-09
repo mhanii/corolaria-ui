@@ -4,7 +4,8 @@ import { Search, FileText, Scale, Shield, Sparkles, Brain } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { DeepResearchDemo } from "@/components/home/DeepResearchDemo";
 import { DocumentGenerationDemo } from "@/components/home/DocumentGenerationDemo";
-import { LawyerModeDemo } from "@/components/home/LawyerModeDemo";
+import { LegislativeVersioningDemo } from "@/components/home/LegislativeVersioningDemo";
+import { History } from "lucide-react";
 
 const CAPABILITIES = [
 
@@ -23,17 +24,18 @@ const CAPABILITIES = [
     icon: Scale,
   },
   {
+    title: "Control de versiones",
+    description:
+      "Localiza la normativa vigente en el momento de los hechos. Compara versiones históricas y detecta cambios legislativos clave para tu caso.",
+    mediaLabel: "Demostración de control de versiones legislativo",
+    icon: History,
+  },
+  {
     title: "Modo abogado",
     description:
       "Asistencia orientada al flujo real de trabajo legal: contexto, trazabilidad y redacción argumentativa con foco en utilidad práctica para despachos y asesorías.",
-    mediaLabel: "Demostración de modo abogado (GIF próximamente)",
+    mediaLabel: "Demostración de modo abogado (próximamente)",
     icon: Brain,
-  }, {
-    title: "Buscador legal",
-    description:
-      "Localiza normativa, jurisprudencia y doctrina con una búsqueda semántica enfocada en intención jurídica. Diseñado para acelerar la investigación sin perder precisión.",
-    mediaLabel: "Tutorial rápido del buscador (GIF próximamente)",
-    icon: Search,
   }
 ] as const;
 
@@ -121,11 +123,11 @@ export default function Home() {
                       <DeepResearchDemo />
                     ) : item.title === "Generación de documentos" ? (
                       <DocumentGenerationDemo />
-                    ) : item.title === "Modo abogado" ? (
-                      <LawyerModeDemo />
+                    ) : item.title === "Control de versiones" ? (
+                      <LegislativeVersioningDemo />
                     ) : (
                       <div className="media-placeholder media-placeholder--card" role="img" aria-label={item.mediaLabel}>
-                        <div className="media-placeholder__label">GIF tutorial próximamente</div>
+                        <div className="media-placeholder__label">Aproximadamente</div>
                       </div>
                     )}
                   </div>
