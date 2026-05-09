@@ -119,7 +119,7 @@ export async function generateDocxBlob(content: string): Promise<Blob> {
             if (marker === '**' || marker === '__') {
                 runs.push(new TextRun({ text: content, bold: true }))
             } else {
-                runs.push(new TextRun({ text: content, italic: true }))
+                runs.push(new TextRun({ text: content, italics: true }))
             }
 
             lastIndex = regex.lastIndex
