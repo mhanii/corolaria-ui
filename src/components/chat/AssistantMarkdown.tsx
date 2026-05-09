@@ -58,6 +58,16 @@ export const AssistantMarkdown = memo(function AssistantMarkdown({
             return `[${text}](#citation-${id})`
         })
 
+        // Handle Latin text in << >> or « » only outside of code blocks/spans
+        const parts = text.split(/(```[\s\S]*?```|`[^`]+`)/g);
+        text = parts.map((part, i) => {
+            if (i % 2 === 0) {
+                // Normalize markers to « » and include them in the italicized text
+                return part.replace(/(?:<<|«)([\s\S]*?)(?:>>|»)/g, '_«$1»_');
+            }
+            return part;
+        }).join('');
+
         return text;
     }, [content, isStreaming]);
 

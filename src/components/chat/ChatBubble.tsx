@@ -38,6 +38,22 @@ interface ChatBubbleProps {
     isLast?: boolean
 }
 
+const UserMessageContent = memo(({ content }: { content: string }) => {
+    if (!content) return null;
+    // Split by markers (capturing the whole bracketed expression)
+    const parts = content.split(/(<<[\s\S]*?>>|«[\s\S]*?»)/g);
+    return (
+        <>
+            {parts.map((part, i) => {
+                if (i % 2 === 0) return part;
+                // Normalize markers to « » and render the whole thing as italic
+                const normalized = part.replace(/^(?:<<|«)/, '«').replace(/(?:>>|»)$/, '»');
+                return <em key={i} className="italic">{normalized}</em>;
+            })}
+        </>
+    );
+});
+
 export const ChatBubble = memo(function ChatBubble({
     role,
     content,
@@ -103,7 +119,7 @@ export const ChatBubble = memo(function ChatBubble({
                                 isStreaming={isStreaming}
                             />
                         ) : (
-                            content
+                            <UserMessageContent content={content} />
                         )}
                     </div>
                 </div>
