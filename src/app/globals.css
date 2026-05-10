@@ -278,24 +278,16 @@
   /* Highlight italic for << >> / « » parsed text */
   .highlight-italic {
     font-style: italic;
-    color: hsl(var(--accent));
-    background: hsl(var(--accent) / 0.07);
-    border-radius: 0.375rem;
-    padding: 0.125rem 0.375rem;
-    border: 1px solid hsl(var(--accent) / 0.12);
-    transition: all 0.2s ease;
+    color: hsl(var(--accent) / 0.85);
   }
 
   .dark .highlight-italic {
-    background: hsl(var(--accent) / 0.15);
-    border-color: hsl(var(--accent) / 0.22);
+    color: hsl(var(--accent) / 0.7);
   }
 
-  /* Inside user accent bubble — invert for contrast */
+  /* Inside user accent bubble — slightly dimmed for contrast */
   .bg-accent .highlight-italic {
-    color: hsl(var(--accent-foreground) / 0.95);
-    background: hsl(var(--accent-foreground) / 0.12);
-    border-color: hsl(var(--accent-foreground) / 0.18);
+    color: hsl(var(--accent-foreground) / 0.85);
   }
 
   /* Gradient text animation for empty state */
