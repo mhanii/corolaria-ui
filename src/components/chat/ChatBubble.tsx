@@ -1,6 +1,6 @@
 "use client"
 
-import { Copy, Edit } from "lucide-react"
+import { Copy, Edit, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { CitationResponse, ArticleDetailResponse, ArticleResult, ArtifactSummary } from "@/lib/api/types"
@@ -46,9 +46,13 @@ const UserMessageContent = memo(({ content }: { content: string }) => {
         <>
             {parts.map((part, i) => {
                 if (i % 2 === 0) return part;
-                // Normalize markers to « » and render the whole thing as italic
+                // Normalize markers to « » and render with highlight styling
                 const normalized = part.replace(/^(?:<<|«)/, '«').replace(/(?:>>|»)$/, '»');
-                return <em key={i} className="italic">{normalized}</em>;
+                return (
+                    <span key={i} className="highlight-italic inline">
+                        {normalized}
+                    </span>
+                );
             })}
         </>
     );
@@ -98,12 +102,20 @@ export const ChatBubble = memo(function ChatBubble({
             )}
             style={{ minHeight }}
         >
+            {role === "assistant" && (
+                <div className="flex items-center gap-1.5 mb-1.5 ml-1 opacity-80">
+                    <div className="w-5 h-5 rounded-full bg-accent/10 flex items-center justify-center">
+                        <Sparkles className="w-3 h-3 text-accent" />
+                    </div>
+                    <span className="text-[10px] font-semibold text-muted-foreground tracking-wider uppercase">Asistente</span>
+                </div>
+            )}
             <div
                 className={cn(
-                    "rounded-2xl px-4 py-3",
+                    "rounded-2xl px-4 py-3 transition-all duration-200",
                     role === "user"
-                        ? "bg-accent text-accent-foreground font-medium shadow-soft text-[clamp(0.86rem,2.2vw,1rem)]"
-                        : "text-foreground text-[clamp(0.86rem,2.2vw,1rem)]"
+                        ? "bg-accent text-accent-foreground font-medium shadow-soft border border-transparent border-r-[3px] border-r-accent-foreground/15 text-[clamp(0.86rem,2.2vw,1rem)]"
+                        : "bg-muted/30 text-foreground shadow-soft border border-border/40 border-l-[3px] border-l-accent/30 text-[clamp(0.86rem,2.2vw,1rem)] hover:bg-muted/40"
                 )}
             >
                 <div className="flex flex-col gap-4">
