@@ -275,19 +275,19 @@
     animation: bubble-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  /* Highlight italic for << >> / « » parsed text */
+  /* Highlight italic for << >> / « » parsed text — extremely subtle warm tint */
   .highlight-italic {
     font-style: italic;
-    color: hsl(var(--accent) / 0.85);
+    color: color-mix(in hsl, hsl(var(--foreground)) 88%, hsl(var(--accent)) 12%);
   }
 
   .dark .highlight-italic {
-    color: hsl(var(--accent) / 0.7);
+    color: color-mix(in hsl, hsl(var(--foreground)) 92%, hsl(var(--accent)) 8%);
   }
 
-  /* Inside user accent bubble — slightly dimmed for contrast */
+  /* Inside user accent bubble — same blending principle against bubble background */
   .bg-accent .highlight-italic {
-    color: hsl(var(--accent-foreground) / 0.85);
+    color: color-mix(in hsl, hsl(var(--accent-foreground)) 88%, hsl(var(--accent)) 12%);
   }
 
   /* Gradient text animation for empty state */
